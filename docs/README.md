@@ -1,6 +1,7 @@
 # 📚 QuestForge — Documentação do Projeto
 
 > Plataforma de estudo orientada a IA com foco em **Active Recall**, **Revisão Espaçada** e **mitigação de dispersão**.
+> Backend: **Laravel 11 (PHP)** | Frontend: **React (Vite)** | IA: **Google Gemini API**
 
 ## Índice da Documentação
 

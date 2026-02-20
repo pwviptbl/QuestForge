@@ -8,7 +8,7 @@ http://localhost:8000/api
 ## Autenticação
 Todos os endpoints (exceto registro e login) requerem header:
 ```
-Authorization: Bearer <jwt_token>
+Authorization: Bearer <sanctum_token>
 ```
 
 ---
@@ -47,7 +47,7 @@ Cria uma nova conta de usuário.
 ---
 
 ### `POST /api/auth/login`
-Autentica o usuário e retorna tokens JWT.
+Autentica o usuário e retorna token Sanctum.
 
 **Request Body:**
 ```json
@@ -60,10 +60,13 @@ Autentica o usuário e retorna tokens JWT.
 **Response `200 OK`:**
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIs...",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
+  "access_token": "1|abc123def456...",
   "token_type": "bearer",
-  "expires_in": 1800
+  "user": {
+    "id": 1,
+    "nome": "Marcio Silva",
+    "email": "marcio@email.com"
+  }
 }
 ```
 

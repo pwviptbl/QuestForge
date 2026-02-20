@@ -18,220 +18,269 @@ erDiagram
     QUESTAO ||--o| SRS_CARD : gera
 
     USER {
-        int id PK
+        bigint id PK
         string nome
         string email UK
-        string senha_hash
+        string password
         string nivel "Iniciante/Intermediario/Avancado"
         int pomodoro_duracao "default 25"
         int meta_diaria_questoes "default 20"
-        datetime created_at
-        datetime updated_at
+        timestamp created_at
+        timestamp updated_at
     }
 
     CONCURSO {
-        int id PK
-        int user_id FK
+        bigint id PK
+        bigint user_id FK
         string nome
-        string descricao
+        text descricao
         date data_prova
-        string sintaxe_original
-        datetime created_at
+        text sintaxe_original
+        timestamp created_at
+        timestamp updated_at
     }
 
     MATERIA {
-        int id PK
-        int concurso_id FK
+        bigint id PK
+        bigint concurso_id FK
         string nome
         int ordem
+        timestamp created_at
+        timestamp updated_at
     }
 
     TOPICO {
-        int id PK
-        int materia_id FK
+        bigint id PK
+        bigint materia_id FK
         string nome
         int ordem
+        timestamp created_at
+        timestamp updated_at
     }
 
     QUESTAO {
-        int id PK
-        int topico_id FK
-        string enunciado
+        bigint id PK
+        bigint topico_id FK
+        text enunciado
         string tipo "multipla_escolha/certo_errado"
         string dificuldade "facil/medio/dificil"
         string resposta_correta
-        string explicacao "nullable - gerada on-demand"
-        string gemini_prompt_hash "rastreabilidade"
-        datetime created_at
+        text explicacao "nullable"
+        string gemini_prompt_hash "nullable"
+        timestamp created_at
+        timestamp updated_at
     }
 
     ALTERNATIVA {
-        int id PK
-        int questao_id FK
+        bigint id PK
+        bigint questao_id FK
         string letra "A/B/C/D/E"
-        string texto
+        text texto
         boolean is_correta
     }
 
     USER_RESPONSE {
-        int id PK
-        int user_id FK
-        int questao_id FK
+        bigint id PK
+        bigint user_id FK
+        bigint questao_id FK
         string resposta_usuario
         boolean acertou
         boolean solicitou_explicacao
         int tempo_resposta_seg
-        datetime respondida_em
+        timestamp created_at
     }
 
     SRS_CARD {
-        int id PK
-        int user_id FK
-        int questao_id FK
-        int topico_id FK
+        bigint id PK
+        bigint user_id FK
+        bigint questao_id FK
+        bigint topico_id FK
         int intervalo_atual_dias "1, 3, 7, 14, 30"
-        int repeticoes "numero de revisoes corretas"
+        int repeticoes "revisoes corretas"
         float fator_facilidade "default 2.5"
-        datetime proxima_revisao
-        datetime ultima_revisao
+        timestamp proxima_revisao
+        timestamp ultima_revisao
         string status "pendente/dominado/suspenso"
+        timestamp created_at
+        timestamp updated_at
     }
 
     POMODORO_SESSION {
-        int id PK
-        int user_id FK
-        int concurso_id FK
+        bigint id PK
+        bigint user_id FK
+        bigint concurso_id FK
         int duracao_minutos
         int questoes_respondidas
         int questoes_acertadas
-        datetime iniciado_em
-        datetime finalizado_em
+        timestamp iniciado_em
+        timestamp finalizado_em
         string status "ativo/completo/interrompido"
+        timestamp created_at
+        timestamp updated_at
     }
 ```
 
 ---
 
-## Detalhamento das Tabelas
+## Migrations Laravel
 
-### `users`
-| Coluna | Tipo | Constraints | Descrição |
-|--------|------|-------------|-----------|
-| id | INTEGER | PK, AUTO_INCREMENT | Identificador único |
-| nome | VARCHAR(100) | NOT NULL | Nome completo do usuário |
-| email | VARCHAR(255) | NOT NULL, UNIQUE | E-mail para login |
-| senha_hash | VARCHAR(255) | NOT NULL | Hash bcrypt da senha |
-| nivel | VARCHAR(20) | DEFAULT 'Iniciante' | Nível calculado pelo sistema |
-| pomodoro_duracao | INTEGER | DEFAULT 25 | Duração padrão do Pomodoro em minutos |
-| meta_diaria_questoes | INTEGER | DEFAULT 20 | Meta diária de questões |
-| created_at | TIMESTAMP | DEFAULT NOW() | Data de criação |
-| updated_at | TIMESTAMP | ON UPDATE NOW() | Última atualização |
+### `users` (já vem com Laravel, adicionar campos extras)
+```php
+// Campos extras no User
+$table->string('nivel')->default('Iniciante');
+$table->integer('pomodoro_duracao')->default(25);
+$table->integer('meta_diaria_questoes')->default(20);
+```
 
 ### `concursos`
-| Coluna | Tipo | Constraints | Descrição |
-|--------|------|-------------|-----------|
-| id | INTEGER | PK, AUTO_INCREMENT | Identificador único |
-| user_id | INTEGER | FK → users.id, NOT NULL | Quem cadastrou |
-| nome | VARCHAR(200) | NOT NULL | Nome do concurso/edital |
-| descricao | TEXT | NULLABLE | Descrição livre |
-| data_prova | DATE | NULLABLE | Data prevista da prova |
-| sintaxe_original | TEXT | NOT NULL | Texto original inserido pelo usuário |
-| created_at | TIMESTAMP | DEFAULT NOW() | Data de criação |
+```php
+Schema::create('concursos', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+    $table->string('nome', 200);
+    $table->text('descricao')->nullable();
+    $table->date('data_prova')->nullable();
+    $table->text('sintaxe_original');
+    $table->timestamps();
+});
+```
 
 ### `materias`
-| Coluna | Tipo | Constraints | Descrição |
-|--------|------|-------------|-----------|
-| id | INTEGER | PK, AUTO_INCREMENT | Identificador único |
-| concurso_id | INTEGER | FK → concursos.id, ON DELETE CASCADE | Concurso pai |
-| nome | VARCHAR(100) | NOT NULL | Nome da matéria |
-| ordem | INTEGER | DEFAULT 0 | Ordem de exibição |
+```php
+Schema::create('materias', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('concurso_id')->constrained()->cascadeOnDelete();
+    $table->string('nome', 100);
+    $table->integer('ordem')->default(0);
+    $table->timestamps();
 
-> **Constraint UNIQUE:** (concurso_id, nome) — não pode ter matérias duplicadas no mesmo concurso.
+    $table->unique(['concurso_id', 'nome']);
+});
+```
 
 ### `topicos`
-| Coluna | Tipo | Constraints | Descrição |
-|--------|------|-------------|-----------|
-| id | INTEGER | PK, AUTO_INCREMENT | Identificador único |
-| materia_id | INTEGER | FK → materias.id, ON DELETE CASCADE | Matéria pai |
-| nome | VARCHAR(100) | NOT NULL | Nome do tópico |
-| ordem | INTEGER | DEFAULT 0 | Ordem de exibição |
+```php
+Schema::create('topicos', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('materia_id')->constrained()->cascadeOnDelete();
+    $table->string('nome', 100);
+    $table->integer('ordem')->default(0);
+    $table->timestamps();
 
-> **Constraint UNIQUE:** (materia_id, nome) — não pode ter tópicos duplicados na mesma matéria.
+    $table->unique(['materia_id', 'nome']);
+});
+```
 
 ### `questoes`
-| Coluna | Tipo | Constraints | Descrição |
-|--------|------|-------------|-----------|
-| id | INTEGER | PK, AUTO_INCREMENT | Identificador único |
-| topico_id | INTEGER | FK → topicos.id, NOT NULL | Tópico relacionado |
-| enunciado | TEXT | NOT NULL | Texto da questão |
-| tipo | VARCHAR(20) | NOT NULL | "multipla_escolha" ou "certo_errado" |
-| dificuldade | VARCHAR(10) | NOT NULL | "facil", "medio" ou "dificil" |
-| resposta_correta | VARCHAR(5) | NOT NULL | Letra correta ou "certo"/"errado" |
-| explicacao | TEXT | NULLABLE | Explicação gerada sob demanda |
-| gemini_prompt_hash | VARCHAR(64) | NULLABLE | Hash do prompt para rastreabilidade |
-| created_at | TIMESTAMP | DEFAULT NOW() | Data de criação |
+```php
+Schema::create('questoes', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('topico_id')->constrained()->cascadeOnDelete();
+    $table->text('enunciado');
+    $table->string('tipo', 20);           // multipla_escolha ou certo_errado
+    $table->string('dificuldade', 10);    // facil, medio, dificil
+    $table->string('resposta_correta', 5);
+    $table->text('explicacao')->nullable();
+    $table->string('gemini_prompt_hash', 64)->nullable();
+    $table->timestamps();
+
+    $table->index('topico_id');
+});
+```
 
 ### `alternativas`
-| Coluna | Tipo | Constraints | Descrição |
-|--------|------|-------------|-----------|
-| id | INTEGER | PK, AUTO_INCREMENT | Identificador único |
-| questao_id | INTEGER | FK → questoes.id, ON DELETE CASCADE | Questão pai |
-| letra | CHAR(1) | NOT NULL | A, B, C, D ou E |
-| texto | TEXT | NOT NULL | Texto da alternativa |
-| is_correta | BOOLEAN | NOT NULL, DEFAULT FALSE | Se é a alternativa correta |
+```php
+Schema::create('alternativas', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('questao_id')->constrained()->cascadeOnDelete();
+    $table->char('letra', 1);             // A, B, C, D, E
+    $table->text('texto');
+    $table->boolean('is_correta')->default(false);
+});
+```
 
 ### `user_responses`
-| Coluna | Tipo | Constraints | Descrição |
-|--------|------|-------------|-----------|
-| id | INTEGER | PK, AUTO_INCREMENT | Identificador único |
-| user_id | INTEGER | FK → users.id, NOT NULL | Quem respondeu |
-| questao_id | INTEGER | FK → questoes.id, NOT NULL | Questão respondida |
-| resposta_usuario | VARCHAR(5) | NOT NULL | Resposta selecionada |
-| acertou | BOOLEAN | NOT NULL | Se acertou ou errou |
-| solicitou_explicacao | BOOLEAN | DEFAULT FALSE | Se pediu explicação |
-| tempo_resposta_seg | INTEGER | NULLABLE | Tempo para responder em segundos |
-| respondida_em | TIMESTAMP | DEFAULT NOW() | Quando respondeu |
+```php
+Schema::create('user_responses', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+    $table->foreignId('questao_id')->constrained()->cascadeOnDelete();
+    $table->string('resposta_usuario', 5);
+    $table->boolean('acertou');
+    $table->boolean('solicitou_explicacao')->default(false);
+    $table->integer('tempo_resposta_seg')->nullable();
+    $table->timestamp('created_at')->useCurrent();
+
+    $table->index('user_id');
+    $table->index('questao_id');
+});
+```
 
 ### `srs_cards`
-| Coluna | Tipo | Constraints | Descrição |
-|--------|------|-------------|-----------|
-| id | INTEGER | PK, AUTO_INCREMENT | Identificador único |
-| user_id | INTEGER | FK → users.id, NOT NULL | Dono do card |
-| questao_id | INTEGER | FK → questoes.id, NOT NULL | Questão para revisão |
-| topico_id | INTEGER | FK → topicos.id, NOT NULL | Tópico para agrupamento |
-| intervalo_atual_dias | INTEGER | DEFAULT 1 | Intervalo atual em dias |
-| repeticoes | INTEGER | DEFAULT 0 | Quantas vezes acertou seguido |
-| fator_facilidade | FLOAT | DEFAULT 2.5 | Fator SM-2 |
-| proxima_revisao | TIMESTAMP | NOT NULL | Data da próxima revisão |
-| ultima_revisao | TIMESTAMP | NULLABLE | Data da última revisão |
-| status | VARCHAR(20) | DEFAULT 'pendente' | "pendente", "dominado", "suspenso" |
+```php
+Schema::create('srs_cards', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+    $table->foreignId('questao_id')->constrained()->cascadeOnDelete();
+    $table->foreignId('topico_id')->constrained()->cascadeOnDelete();
+    $table->integer('intervalo_atual_dias')->default(1);
+    $table->integer('repeticoes')->default(0);
+    $table->float('fator_facilidade')->default(2.5);
+    $table->timestamp('proxima_revisao');
+    $table->timestamp('ultima_revisao')->nullable();
+    $table->string('status', 20)->default('pendente');
+    $table->timestamps();
 
-> **Constraint UNIQUE:** (user_id, questao_id) — cada questão só tem um card SRS por usuário.
+    $table->unique(['user_id', 'questao_id']);
+    $table->index(['user_id', 'proxima_revisao']);
+    $table->index(['user_id', 'status']);
+});
+```
 
 ### `pomodoro_sessions`
-| Coluna | Tipo | Constraints | Descrição |
-|--------|------|-------------|-----------|
-| id | INTEGER | PK, AUTO_INCREMENT | Identificador único |
-| user_id | INTEGER | FK → users.id, NOT NULL | Quem realizou |
-| concurso_id | INTEGER | FK → concursos.id, NULLABLE | Concurso estudado |
-| duracao_minutos | INTEGER | NOT NULL | Duração configurada |
-| questoes_respondidas | INTEGER | DEFAULT 0 | Total respondidas |
-| questoes_acertadas | INTEGER | DEFAULT 0 | Total acertadas |
-| iniciado_em | TIMESTAMP | NOT NULL | Início da sessão |
-| finalizado_em | TIMESTAMP | NULLABLE | Fim da sessão |
-| status | VARCHAR(20) | DEFAULT 'ativo' | "ativo", "completo", "interrompido" |
+```php
+Schema::create('pomodoro_sessions', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+    $table->foreignId('concurso_id')->nullable()->constrained()->nullOnDelete();
+    $table->integer('duracao_minutos');
+    $table->integer('questoes_respondidas')->default(0);
+    $table->integer('questoes_acertadas')->default(0);
+    $table->timestamp('iniciado_em');
+    $table->timestamp('finalizado_em')->nullable();
+    $table->string('status', 20)->default('ativo');
+    $table->timestamps();
+
+    $table->index('user_id');
+});
+```
 
 ---
 
-## Índices Recomendados
+## Relacionamentos Eloquent
 
-```sql
--- Performance de consultas frequentes
-CREATE INDEX idx_user_responses_user_id ON user_responses(user_id);
-CREATE INDEX idx_user_responses_questao_id ON user_responses(questao_id);
-CREATE INDEX idx_srs_cards_proxima_revisao ON srs_cards(user_id, proxima_revisao);
-CREATE INDEX idx_srs_cards_status ON srs_cards(user_id, status);
-CREATE INDEX idx_questoes_topico_id ON questoes(topico_id);
-CREATE INDEX idx_materias_concurso_id ON materias(concurso_id);
-CREATE INDEX idx_topicos_materia_id ON topicos(materia_id);
+```php
+// User.php
+public function concursos() { return $this->hasMany(Concurso::class); }
+public function responses() { return $this->hasMany(UserResponse::class); }
+public function srsCards() { return $this->hasMany(SrsCard::class); }
+public function pomodoroSessions() { return $this->hasMany(PomodoroSession::class); }
+
+// Concurso.php
+public function user() { return $this->belongsTo(User::class); }
+public function materias() { return $this->hasMany(Materia::class); }
+
+// Materia.php
+public function concurso() { return $this->belongsTo(Concurso::class); }
+public function topicos() { return $this->hasMany(Topico::class); }
+
+// Topico.php
+public function materia() { return $this->belongsTo(Materia::class); }
+public function questoes() { return $this->hasMany(Questao::class); }
+
+// Questao.php
+public function topico() { return $this->belongsTo(Topico::class); }
+public function alternativas() { return $this->hasMany(Alternativa::class); }
+public function responses() { return $this->hasMany(UserResponse::class); }
+public function srsCard() { return $this->hasOne(SrsCard::class); }
 ```

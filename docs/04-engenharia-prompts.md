@@ -2,7 +2,7 @@
 
 ## Estratégia de Integração com Gemini API
 
-O backend orquestra dois tipos de requisições para a API do Gemini. Ambas utilizam **System Prompts** rigorosos para garantir respostas estruturadas e consistentes.
+O backend Laravel orquestra dois tipos de requisições para a API do Gemini via `GeminiService`. Ambas utilizam **System Prompts** rigorosos para garantir respostas estruturadas e consistentes.
 
 ---
 
@@ -51,42 +51,83 @@ RETORNE EXCLUSIVAMENTE um JSON válido no seguinte formato (sem markdown, sem te
 | `{dificuldade}` | string | "medio" | Nível de dificuldade |
 | `{tipo}` | string | "multipla_escolha" | Tipo das questões |
 
-### Configuração da API
+### Configuração da API (Laravel)
 
-```python
-# Configuração para geração de questões
-generation_config = {
-    "temperature": 0.7,        # Variação criativa moderada
-    "top_p": 0.9,
-    "top_k": 40,
-    "max_output_tokens": 8192, # Espaço suficiente para muitas questões
-    "response_mime_type": "application/json"  # Força resposta JSON
-}
+```php
+// config/gemini.php
+return [
+    'api_key' => env('GEMINI_API_KEY'),
+    'model' => env('GEMINI_MODEL', 'gemini-2.0-flash'),
+
+    // Configuração para geração de questões
+    'generation' => [
+        'temperature' => 0.7,        // Variação criativa moderada
+        'top_p' => 0.9,
+        'top_k' => 40,
+        'max_output_tokens' => 8192, // Espaço suficiente para muitas questões
+    ],
+
+    // Configuração para explicações - mais determinística
+    'explanation' => [
+        'temperature' => 0.3,        // Mais focado e previsível
+        'top_p' => 0.8,
+        'top_k' => 20,
+        'max_output_tokens' => 1024, // Explicações devem ser curtas
+    ],
+];
 ```
 
-### Validação do Response
+### Validação do Response (PHP)
 
-```python
-# Checklist de validação após receber resposta do Gemini
-def validar_questoes(response_json: dict) -> bool:
-    """Valida a estrutura do JSON retornado pelo Gemini."""
-    questoes = response_json.get("questoes", [])
-    
-    for q in questoes:
-        assert "enunciado" in q, "Enunciado ausente"
-        assert "tipo" in q, "Tipo ausente"
-        assert "resposta_correta" in q, "Resposta correta ausente"
-        
-        if q["tipo"] == "multipla_escolha":
-            assert len(q["alternativas"]) == 5, "Deve ter 5 alternativas"
-            letras = [a["letra"] for a in q["alternativas"]]
-            assert letras == ["A", "B", "C", "D", "E"], "Letras inválidas"
-            assert q["resposta_correta"] in letras, "Resposta não está nas alternativas"
-        
-        elif q["tipo"] == "certo_errado":
-            assert q["resposta_correta"] in ["CERTO", "ERRADO"]
-    
-    return True
+```php
+// app/Services/GeminiService.php
+
+/**
+ * Valida a estrutura do JSON retornado pelo Gemini.
+ *
+ * @param array $data JSON decodificado da resposta do Gemini
+ * @throws \InvalidArgumentException Se a estrutura for inválida
+ */
+private function validarQuestoes(array $data): bool
+{
+    $questoes = $data['questoes'] ?? [];
+
+    if (empty($questoes)) {
+        throw new \InvalidArgumentException('Nenhuma questão retornada pelo Gemini');
+    }
+
+    foreach ($questoes as $index => $q) {
+        // Campos obrigatórios
+        foreach (['enunciado', 'tipo', 'resposta_correta'] as $campo) {
+            if (!isset($q[$campo])) {
+                throw new \InvalidArgumentException("Questão {$index}: campo '{$campo}' ausente");
+            }
+        }
+
+        if ($q['tipo'] === 'multipla_escolha') {
+            $alternativas = $q['alternativas'] ?? [];
+
+            if (count($alternativas) !== 5) {
+                throw new \InvalidArgumentException("Questão {$index}: deve ter 5 alternativas");
+            }
+
+            $letras = array_column($alternativas, 'letra');
+            if ($letras !== ['A', 'B', 'C', 'D', 'E']) {
+                throw new \InvalidArgumentException("Questão {$index}: letras inválidas");
+            }
+
+            if (!in_array($q['resposta_correta'], $letras)) {
+                throw new \InvalidArgumentException("Questão {$index}: resposta não está nas alternativas");
+            }
+        } elseif ($q['tipo'] === 'certo_errado') {
+            if (!in_array($q['resposta_correta'], ['CERTO', 'ERRADO'])) {
+                throw new \InvalidArgumentException("Questão {$index}: resposta deve ser CERTO ou ERRADO");
+            }
+        }
+    }
+
+    return true;
+}
 ```
 
 ---
@@ -124,18 +165,6 @@ RESPOSTA DO ALUNO: {resposta_usuario}
 O ALUNO {acertou_ou_errou}.
 
 Explique de forma concisa e direta.
-```
-
-### Configuração da API
-
-```python
-# Configuração para explicações - mais determinística
-explanation_config = {
-    "temperature": 0.3,        # Mais focado e previsível
-    "top_p": 0.8,
-    "top_k": 20,
-    "max_output_tokens": 1024, # Explicações devem ser curtas
-}
 ```
 
 ---
@@ -187,45 +216,126 @@ CALIBRE A DIFICULDADE assim:
 
 ---
 
-## 5. Tratamento de Erros
+## 5. Implementação do GeminiService (Laravel)
 
-### Retry Strategy
+```php
+<?php
 
-```python
-# Estratégia de retry para falhas da API
-RETRY_CONFIG = {
-    "max_retries": 3,
-    "backoff_factor": 2,        # 1s, 2s, 4s
-    "retry_on_status": [429, 500, 503],
+namespace App\Services;
+
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+
+class GeminiService
+{
+    private string $apiKey;
+    private string $model;
+    private string $baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+
+    public function __construct()
+    {
+        $this->apiKey = config('gemini.api_key');
+        $this->model = config('gemini.model');
+    }
+
+    /**
+     * Gera questões usando a API do Gemini.
+     */
+    public function gerarQuestoes(
+        string $materia,
+        string $topico,
+        int $quantidade,
+        string $tipo,
+        string $dificuldade
+    ): array {
+        $prompt = $this->montarPromptGeracao($materia, $topico, $quantidade, $tipo, $dificuldade);
+        $config = config('gemini.generation');
+
+        $response = $this->chamarApi($prompt, $config);
+        $data = $this->extrairJson($response);
+        $this->validarQuestoes($data);
+
+        return $data['questoes'];
+    }
+
+    /**
+     * Gera explicação para uma questão específica.
+     */
+    public function gerarExplicacao(array $questao, string $respostaUsuario, bool $acertou): string
+    {
+        $prompt = $this->montarPromptExplicacao($questao, $respostaUsuario, $acertou);
+        $config = config('gemini.explanation');
+
+        return $this->chamarApi($prompt, $config);
+    }
+
+    /**
+     * Chama a API do Gemini com retry automático.
+     */
+    private function chamarApi(string $prompt, array $config, int $tentativa = 1): string
+    {
+        $maxTentativas = 3;
+
+        try {
+            $response = Http::timeout(30)
+                ->post("{$this->baseUrl}/models/{$this->model}:generateContent?key={$this->apiKey}", [
+                    'contents' => [
+                        ['parts' => [['text' => $prompt]]]
+                    ],
+                    'generationConfig' => $config,
+                ]);
+
+            if ($response->failed()) {
+                throw new \RuntimeException("Gemini API retornou status {$response->status()}");
+            }
+
+            $data = $response->json();
+            return $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
+
+        } catch (\Exception $e) {
+            if ($tentativa < $maxTentativas) {
+                // Backoff exponencial: 1s, 2s, 4s
+                sleep(pow(2, $tentativa - 1));
+                Log::warning("GeminiService: tentativa {$tentativa} falhou, retentando...", [
+                    'error' => $e->getMessage()
+                ]);
+                return $this->chamarApi($prompt, $config, $tentativa + 1);
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Tenta extrair JSON válido da resposta, mesmo com texto extra.
+     */
+    private function extrairJson(string $responseText): array
+    {
+        // Tenta parse direto
+        $data = json_decode($responseText, true);
+        if ($data !== null) {
+            return $data;
+        }
+
+        // Tenta encontrar JSON dentro de markdown code blocks
+        if (preg_match('/```json?\s*(.*?)\s*```/s', $responseText, $matches)) {
+            $data = json_decode($matches[1], true);
+            if ($data !== null) {
+                return $data;
+            }
+        }
+
+        // Tenta encontrar qualquer objeto JSON
+        if (preg_match('/\{.*\}/s', $responseText, $matches)) {
+            $data = json_decode($matches[0], true);
+            if ($data !== null) {
+                return $data;
+            }
+        }
+
+        throw new \RuntimeException('Não foi possível extrair JSON da resposta do Gemini');
+    }
 }
-```
-
-### Fallback para JSON Inválido
-
-```python
-# Se o Gemini retornar JSON inválido, tenta extrair e corrigir
-import re
-import json
-
-def extrair_json(response_text: str) -> dict:
-    """Tenta extrair JSON válido da resposta, mesmo com texto extra."""
-    # Tenta parse direto
-    try:
-        return json.loads(response_text)
-    except json.JSONDecodeError:
-        pass
-    
-    # Tenta encontrar o JSON dentro de markdown code blocks
-    match = re.search(r'```json?\s*(.*?)\s*```', response_text, re.DOTALL)
-    if match:
-        return json.loads(match.group(1))
-    
-    # Tenta encontrar qualquer objeto JSON
-    match = re.search(r'\{.*\}', response_text, re.DOTALL)
-    if match:
-        return json.loads(match.group(0))
-    
-    raise ValueError("Não foi possível extrair JSON da resposta do Gemini")
 ```
 
 ---
