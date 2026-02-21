@@ -147,6 +147,38 @@ chmod +x deploy.sh
 
 ---
 
+## 🛡️ Segurança (Produção)
+
+Para garantir que a aplicação rode com segurança em sua VPS, certas medidas a nível de infraestrutura e aplicação já estão configuradas:
+
+**1. Blindagem de Banco de Dados**
+As portas do PostgreSQL (`5432`) e Redis (`6379`) agora estão vinculadas estritamente ao `127.0.0.1` dentro do arquivo `docker-compose.yml`. Isso significa que o Docker **não irá ignorar o firewall** para expôr essas portas à rede externa. Elas ficarão invisíveis à internet mundial.
+
+**2. Cabeçalhos e Rate Limiting (API)**
+- A API conta ativamente com um **Middleware de Security Headers** que bloqueia tentativas de ataques XSS, Clickjacking (X-Frame-Options) e sniffing de mimetype (nosniff).
+- O backend possui **Rate Limiter (Throttle)** pré-configurado limitando a rota de login/registro (`auth/login`) para mitigar brute-force (max 5/min) e a rota de IA (`questoes/gerar`) blindando contra estouro de limites na API Gemini (max 15/min).
+
+**3. Configuração do Firewall (Obrigatória da VPS)**
+Mesmo com o sistema seguro, é fundamental que o sistema Operacional (Ubuntu/Debian) bloqueie portas por padrão. Use o UFW:
+
+```bash
+# Permita o SSH (Garante que você não perca acesso ao seu servidor)
+sudo ufw allow 22/tcp
+
+# Portas essenciais p/ Aplicação
+sudo ufw allow 80/tcp     # HTTP 
+sudo ufw allow 443/tcp    # HTTPS
+sudo ufw allow 8000/tcp   # Backend API Laravel
+sudo ufw allow 5173/tcp   # Frontend Vite (se não estiver com nginx proxyando tudo)
+
+# Travar o resto e ativar o firewall
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw enable
+```
+
+---
+
 ## 📚 Documentação
 
 | Documento | Descrição |
