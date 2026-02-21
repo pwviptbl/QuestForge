@@ -18,6 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/*', // rotas da API são stateless (sem CSRF)
         ]);
 
+        // ─── Headers de Segurança: aplicados na API ───────────────
+        $middleware->api(append: [
+            \App\Http\Middleware\SecurityHeaders::class,
+        ]);
+
         // Define os domínios stateful do Sanctum (frontend em dev)
         $middleware->statefulApi();
     })

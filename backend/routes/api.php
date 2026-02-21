@@ -26,8 +26,8 @@ Route::get('/health', fn() => response()->json([
 
 // ─── Autenticação (rotas públicas) ────────────────────────────
 Route::prefix('auth')->group(function () {
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1'); // max 5/min
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1'); // previne brute force
 });
 
 // ─── Rotas protegidas (exige Bearer Token válido) ─────────────
@@ -49,7 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('topicos/{id}', [ConcursoController::class, 'destroyTopico']);
 
     // ── Fase 3: Questões e Respostas ─────────────────────
-    Route::post('questoes/gerar', [QuestaoController::class, 'gerar']);
+    Route::post('questoes/gerar', [QuestaoController::class, 'gerar'])->middleware('throttle:15,1'); // Previne overload da API Gemini/Gastos
     Route::post('respostas', [QuestaoController::class, 'registrarResposta']);
     Route::post('questoes/{id}/explicacao', [QuestaoController::class, 'gerarExplicacao']);
 
