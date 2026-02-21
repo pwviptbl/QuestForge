@@ -74,7 +74,7 @@ export default function SrsResumo() {
                 </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+            <div className="dashboard-grid-container" style={{ gap: '1.5rem', marginBottom: '1.5rem' }}>
                 {/* ─── Progresso geral ────────────────────────────── */}
                 <div className="card">
                     <h3 style={{ marginBottom: '1.25rem', fontSize: '1rem', color: 'var(--text-accent)' }}>

@@ -50,7 +50,7 @@ export default function ConcursoDetail() {
             <div className="flex" style={{ gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
                 <button
                     className="btn btn-primary"
-                    onClick={() => navigate(`/quiz/config?concurso_id=${concurso.id}`)}
+                    onClick={() => navigate(`/quiz/config?modo=concurso&concurso_id=${concurso.id}`)}
                 >
                     ⚡ Iniciar bateria de questões
                 </button>
@@ -93,7 +93,7 @@ export default function ConcursoDetail() {
                                     </span>
                                     <button
                                         className="btn btn-primary btn-sm"
-                                        onClick={() => navigate(`/quiz/config?materia_id=${materia.id}`)}
+                                        onClick={() => navigate(`/quiz/config?modo=materia&concurso_id=${concurso.id}&materia_id=${materia.id}`)}
                                     >
                                         ⚡ Estudar
                                     </button>
@@ -105,7 +105,7 @@ export default function ConcursoDetail() {
                                 {materia.topicos?.map(topico => (
                                     <button
                                         key={topico.id}
-                                        onClick={() => navigate(`/quiz/config?topico_id=${topico.id}`)}
+                                        onClick={() => navigate(`/quiz/config?modo=topico&concurso_id=${concurso.id}&materia_id=${materia.id}&topico_id=${topico.id}`)}
                                         style={{
                                             background: 'var(--bg-glass)',
                                             border: '1px solid var(--border)',

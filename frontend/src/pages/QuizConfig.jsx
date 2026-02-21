@@ -13,9 +13,9 @@ const DIFICULDADES = [
     { value: 'dificil', label: '🔴 Difícil', desc: 'Pegadinhas e casos especiais' },
 ]
 const TIPOS = [
-    { value: 'multipla_escolha', label: '🔡 Múltipla Escolha', desc: '(A-E)' },
-    { value: 'certo_errado', label: '✅ Certo ou Errado', desc: 'CESPE/CEBRASPE' },
-    { value: 'misto', label: '🎲 Misto', desc: 'Combinação' },
+    { value: 'multipla_escolha', label: '🔡 Múltipla', desc: '' },
+    { value: 'certo_errado', label: '✅ Certo/Errado', desc: '' },
+    { value: 'misto', label: '🎲 Misto', desc: '' },
 ]
 const MODOS = [
     { value: 'concurso', label: '🏆 Simulado Completo', desc: 'Todo o edital misturado' },
@@ -36,7 +36,7 @@ export default function QuizConfig() {
     const [loadCon, setLoadCon] = useState(true)
 
     const [config, setConfig] = useState({
-        modo: sp.get('concurso_id') ? 'concurso' : sp.get('materia_id') ? 'materia' : sp.get('topico_id') ? 'topico' : 'concurso',
+        modo: sp.get('modo') || (sp.get('topico_id') ? 'topico' : sp.get('materia_id') ? 'materia' : sp.get('concurso_id') ? 'concurso' : 'concurso'),
         concurso_id: sp.get('concurso_id') || '',
         materia_id: sp.get('materia_id') || '',
         topico_id: sp.get('topico_id') || '',
