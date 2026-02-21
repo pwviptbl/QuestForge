@@ -63,7 +63,7 @@ services:
       POSTGRES_USER: ${DB_USERNAME:-questforge}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - questforge_pgdata:/var/lib/postgresql/data
     networks:
@@ -80,7 +80,7 @@ services:
     container_name: questforge_redis
     restart: unless-stopped
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - questforge_redis_data:/data
     networks:
