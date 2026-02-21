@@ -33,7 +33,7 @@ export default function Dashboard() {
         </Layout>
     )
 
-    const { geral, porMateria, evolucao, vulnerabilidades, srs, pomodoro } = stats
+    const { geral, por_materia: porMateria = [], evolucao = [], vulnerabilidades = [], srs = { pendentes: 0 }, pomodoro } = stats
 
     return (
         <Layout title="Dashboard de Desempenho">
@@ -245,7 +245,7 @@ export default function Dashboard() {
 const mockStats = {
     geral: { total: 0, acertos: 0, taxaAcerto: 0, sequencia: 0, hoje: 0 },
     srs: { pendentes: 0, por_materia: [] },
-    porMateria: [],
+    por_materia: [],
     evolucao: Array.from({ length: 7 }, (_, i) => ({
         dia: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][i],
         acerto: 0, total: 0,
