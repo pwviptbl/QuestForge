@@ -1,0 +1,31 @@
+# ─── Laravel ──────────────────────────────────────────────────
+backend/.env
+backend/.env.backup
+backend/vendor/
+backend/node_modules/
+backend/storage/logs/*.log
+backend/storage/app/public/*
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/bootstrap/cache/*.php
+
+# ─── Frontend (quando criado) ─────────────────────────────────
+frontend/.env
+frontend/node_modules/
+frontend/dist/
+
+# ─── Docker ───────────────────────────────────────────────────
+.env
+
+# ─── Banco de dados local ────────────────────────────────────
+*.db
+*.sqlite
+
+# ─── OS / IDE ────────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db

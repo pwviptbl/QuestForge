@@ -1,0 +1,104 @@
+services:
+
+  # ─── Aplicação PHP (Laravel) ──────────────────────────────
+  app:
+    build:
+      context: ./backend
+      dockerfile: ../docker/php/Dockerfile
+    container_name: questforge_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/var/www/html
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - questforge_net
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ─── Nginx (Proxy Reverso / Servidor Web) ────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: questforge_nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-8000}:80"
+    volumes:
+      - ./backend:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - questforge_net
+    depends_on:
+      - app
+
+  # ─── Frontend React (Vite Dev Server) ────────────────────
+  frontend:
+    image: node:22-alpine
+    container_name: questforge_frontend
+    restart: unless-stopped
+    working_dir: /app
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # evita sobrescrever node_modules do container
+    command: sh -c "npm install && npm run dev"
+    networks:
+      - questforge_net
+    environment:
+      - VITE_API_URL=http://nginx:80/api
+
+  # ─── PostgreSQL (Banco de Dados) ─────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: questforge_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-questforge}
+      POSTGRES_USER: ${DB_USERNAME:-questforge}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - questforge_pgdata:/var/lib/postgresql/data
+    networks:
+      - questforge_net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USERNAME:-questforge}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis (Cache / Queues / Sessions) ───────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: questforge_redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - questforge_redis_data:/data
+    networks:
+      - questforge_net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# ─── Volumes persistentes ────────────────────────────────────
+volumes:
+  questforge_pgdata:
+    driver: local
+  questforge_redis_data:
+    driver: local
+
+# ─── Rede interna do projeto ─────────────────────────────────
+networks:
+  questforge_net:
+    driver: bridge
