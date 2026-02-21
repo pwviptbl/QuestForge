@@ -13,9 +13,9 @@ const DIFICULDADES = [
     { value: 'dificil', label: '🔴 Difícil', desc: 'Pegadinhas e casos especiais' },
 ]
 const TIPOS = [
-    { value: 'multipla_escolha', label: '🔡 Múltipla Escolha', desc: '5 alternativas (A-E)' },
-    { value: 'certo_errado', label: '✅ Certo ou Errado', desc: 'Estilo CESPE/CEBRASPE' },
-    { value: 'misto', label: '🎲 Misto', desc: 'Combinação dos dois tipos' },
+    { value: 'multipla_escolha', label: '🔡 Múltipla Escolha', desc: '(A-E)' },
+    { value: 'certo_errado', label: '✅ Certo ou Errado', desc: 'CESPE/CEBRASPE' },
+    { value: 'misto', label: '🎲 Misto', desc: 'Combinação' },
 ]
 const MODOS = [
     { value: 'concurso', label: '🏆 Simulado Completo', desc: 'Todo o edital misturado' },
