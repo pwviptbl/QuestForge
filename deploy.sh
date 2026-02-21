@@ -44,7 +44,7 @@ docker compose exec app php artisan event:cache
 
 # ─── 8. Ajusta permissões de storage ─────────────────────────
 echo "🔒 Ajustando permissões..."
-docker compose exec app chmod -R 775 storage bootstrap/cache
+docker compose exec -u root app chmod -R 777 storage bootstrap/cache
 
 echo ""
 echo "✅ Deploy concluído com sucesso!"
