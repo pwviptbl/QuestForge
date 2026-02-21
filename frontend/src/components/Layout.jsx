@@ -34,27 +34,28 @@ export default function Layout({ children, title }) {
                         background: 'rgba(0,0,0,0.6)',
                         backdropFilter: 'blur(4px)',
                         zIndex: 40,
-                        display: 'none',
                     }}
                     className="mobile-overlay"
                 />
             )}
 
             {/* ─── Sidebar ──────────────────────────────────────── */}
-            <aside style={{
-                width: 'var(--sidebar-width)',
-                minHeight: '100vh',
-                background: 'var(--bg-secondary)',
-                borderRight: '1px solid var(--border)',
-                display: 'flex',
-                flexDirection: 'column',
-                padding: '1.5rem 0',
-                position: 'sticky',
-                top: 0,
-                flexShrink: 0,
-            }}>
+            <aside
+                className={`sidebar-desktop ${sidebarOpen ? 'sidebar-mobile-open' : ''}`}
+                style={{
+                    width: 'var(--sidebar-width)',
+                    minHeight: '100vh',
+                    background: 'var(--bg-secondary)',
+                    borderRight: '1px solid var(--border)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '1.5rem 0',
+                    position: 'sticky',
+                    top: 0,
+                    flexShrink: 0,
+                }}>
                 {/* Logo */}
-                <div style={{ padding: '0 1.5rem 1.5rem', borderBottom: '1px solid var(--border)', marginBottom: '1rem' }}>
+                <div className="desktop-logo-container" style={{ padding: '0 1.5rem 1.5rem', borderBottom: '1px solid var(--border)', marginBottom: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                         <div style={{
                             width: 36, height: 36,
@@ -78,6 +79,7 @@ export default function Layout({ children, title }) {
                             key={item.to}
                             to={item.to}
                             end={item.to === '/'}
+                            onClick={() => setSidebarOpen(false)}
                             style={({ isActive }) => ({
                                 display: 'flex', alignItems: 'center', gap: '0.75rem',
                                 padding: '0.7rem 0.875rem',
@@ -100,6 +102,7 @@ export default function Layout({ children, title }) {
                     {/* Novo concurso */}
                     <NavLink
                         to="/concursos/novo"
+                        onClick={() => setSidebarOpen(false)}
                         style={({ isActive }) => ({
                             display: 'flex', alignItems: 'center', gap: '0.75rem',
                             padding: '0.7rem 0.875rem',
@@ -145,6 +148,33 @@ export default function Layout({ children, title }) {
 
             {/* ─── Conteúdo principal ───────────────────────────── */}
             <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+                {/* Header mobile (visível apenas em telas menores) */}
+                <div className="mobile-header-bar">
+                    <button
+                        onClick={() => setSidebarOpen(true)}
+                        style={{
+                            background: 'transparent', border: 'none', color: 'var(--text-primary)',
+                            fontSize: '1.5rem', cursor: 'pointer', padding: '0.2rem',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}
+                    >
+                        ☰
+                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{
+                            width: 28, height: 28,
+                            background: 'var(--gradient-brand)',
+                            borderRadius: 'var(--radius-sm)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '0.9rem', flexShrink: 0,
+                        }}>🎯</div>
+                        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
+                            QuestForge
+                        </div>
+                    </div>
+                </div>
+
                 {/* Header da página */}
                 {title && (
                     <header style={{
