@@ -121,7 +121,7 @@ export default function Layout({ children, title }) {
                 </nav>
 
                 {/* Perfil do usuário */}
-                <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border)', marginTop: '0.5rem' }}>
+                <div style={{ padding: '1rem 1.5rem 1.5rem', borderTop: '1px solid var(--border)', marginTop: '0.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.875rem' }}>
                         <div style={{
                             width: 36, height: 36, borderRadius: '50%',
@@ -140,7 +140,7 @@ export default function Layout({ children, title }) {
                             </div>
                         </div>
                     </div>
-                    <button onClick={handleLogout} className="btn btn-secondary btn-sm btn-full">
+                    <button onClick={handleLogout} className="btn btn-secondary btn-sm btn-full" style={{ marginBottom: '1rem' }}>
                         🚪 Sair
                     </button>
                 </div>

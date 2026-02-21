@@ -784,6 +784,8 @@ select.form-input option {
     transform: translateX(-100%);
     transition: transform 0.3s ease-in-out;
     width: 260px !important;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .sidebar-mobile-open {
