@@ -154,14 +154,14 @@ export default function Layout({ children, title }) {
                     <button
                         onClick={() => setSidebarOpen(true)}
                         style={{
-                            background: 'transparent', border: 'none', color: 'var(--text-primary)',
-                            fontSize: '1.5rem', cursor: 'pointer', padding: '0.2rem',
+                            background: 'var(--bg-glass)', border: '1px solid var(--border)', color: 'var(--text-primary)',
+                            fontSize: '1.25rem', cursor: 'pointer', padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-sm)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}
                     >
                         ☰
                     </button>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: '0.5rem' }}>
                         <div style={{
                             width: 28, height: 28,
                             background: 'var(--gradient-brand)',

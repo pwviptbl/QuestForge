@@ -53,7 +53,7 @@ export default function Dashboard() {
                 ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+            <div className="dashboard-grid-container" style={{ gap: '1.5rem', marginBottom: '1.5rem' }}>
                 {/* ─── Evolução semanal ─────────────────────────── */}
                 <div className="card">
                     <h3 style={{ marginBottom: '1.25rem', fontSize: '1rem', color: 'var(--text-accent)' }}>
@@ -108,7 +108,7 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+            <div className="dashboard-grid-container-2" style={{ gap: '1.5rem', marginBottom: '1.5rem' }}>
                 {/* ─── Vulnerabilidades ──────────────────────────── */}
                 <div className="card">
                     <div className="flex-between" style={{ marginBottom: '1.25rem' }}>

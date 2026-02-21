@@ -771,6 +771,7 @@ select.form-input option {
     padding: 0.75rem 1.5rem;
   }
 }
+
 /* ─── Sidebar Mobile ─────────────────────────────────────────── */
 @media (max-width: 768px) {
   .sidebar-desktop {
@@ -784,7 +785,7 @@ select.form-input option {
     transition: transform 0.3s ease-in-out;
     width: 260px !important;
   }
-  
+
   .sidebar-mobile-open {
     transform: translateX(0);
   }
@@ -801,7 +802,7 @@ select.form-input option {
 .mobile-header-bar {
   display: none;
   align-items: center;
-  padding: 1rem 1.5rem;
+  padding: 0.8rem 1rem;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   position: sticky;
@@ -812,6 +813,36 @@ select.form-input option {
 
 .mobile-overlay {
   display: block;
+}
+
+/* Dashboard Grid Fixes */
+.dashboard-grid-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.dashboard-grid-container-2 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+}
+
+@media (max-width: 768px) {
+
+  .dashboard-grid-container,
+  .dashboard-grid-container-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Concurso Detalhes wrap */
+  .materia-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+
+  .materia-header>div:last-child {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 
 @media (min-width: 769px) {

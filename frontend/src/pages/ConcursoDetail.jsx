@@ -72,29 +72,32 @@ export default function ConcursoDetail() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     {concurso.materias?.map((materia, i) => (
                         <div key={materia.id} className="animate-fade-in" style={{ animationDelay: `${i * 0.04}s` }}>
-                            <div style={{
+                            <div className="materia-header" style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                 padding: '0.875rem 1rem',
                                 background: 'rgba(99,102,241,0.06)',
                                 border: '1px solid rgba(99,102,241,0.15)',
                                 borderRadius: 'var(--radius-md)',
                                 marginBottom: '0.5rem',
+                                flexWrap: 'wrap', gap: '0.75rem'
                             }}>
                                 <div className="flex gap-sm" style={{ alignItems: 'center' }}>
                                     <span style={{ fontSize: '1.1rem' }}>📚</span>
                                     <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
                                         {materia.nome}
                                     </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                                     <span className="badge badge-indigo" style={{ fontSize: '0.7rem' }}>
                                         {materia.topicos?.length} tópico{materia.topicos?.length !== 1 ? 's' : ''}
                                     </span>
+                                    <button
+                                        className="btn btn-primary btn-sm"
+                                        onClick={() => navigate(`/quiz/config?materia_id=${materia.id}`)}
+                                    >
+                                        ⚡ Estudar
+                                    </button>
                                 </div>
-                                <button
-                                    className="btn btn-primary btn-sm"
-                                    onClick={() => navigate(`/quiz/config?materia_id=${materia.id}`)}
-                                >
-                                    ⚡ Estudar
-                                </button>
                             </div>
 
                             {/* Tópicos */}
