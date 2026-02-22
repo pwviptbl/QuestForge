@@ -5,8 +5,8 @@ import { useToast } from './Toast'
 
 const NAV_ITEMS = [
     { to: '/', icon: '🏠', label: 'Meus Concursos' },
-    { to: '/quiz/config', icon: '⚡', label: 'Iniciar Bateria' },
-    { to: '/srs', icon: '🔄', label: 'Revisão SRS' },
+    { to: '/quiz/config', icon: '⚡', label: 'Iniciar Questões' },
+    { to: '/srs', icon: '🔄', label: 'Revisão' },
     { to: '/dashboard', icon: '📊', label: 'Dashboard' },
 ]
 

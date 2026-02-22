@@ -21,7 +21,7 @@ const MODOS = [
     { value: 'concurso', label: '🏆 Simulado Completo', desc: 'Todo o edital misturado' },
     { value: 'materia', label: '📚 Por Matéria', desc: 'Foco em uma disciplina' },
     { value: 'topico', label: '🎯 Por Tópico', desc: 'Treino focado' },
-    { value: 'revisao_srs', label: '🔄 Revisão SRS', desc: 'Questões pendentes de revisão' },
+    { value: 'revisao_srs', label: '🔄 Revisão', desc: 'Questões pendentes de revisão' },
 ]
 
 export default function QuizConfig() {

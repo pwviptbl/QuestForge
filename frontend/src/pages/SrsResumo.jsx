@@ -30,7 +30,7 @@ export default function SrsResumo() {
     const dominadoPct = total > 0 ? Math.round((dominado / total) * 100) : 0
 
     return (
-        <Layout title="Revisão Espaçada (SRS)">
+        <Layout title="Revisão Espaçada">
             {/* ─── Stats ────────────────────────────────────────── */}
             <div className="grid-4" style={{ marginBottom: '2rem' }}>
                 {[

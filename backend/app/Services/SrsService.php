@@ -70,7 +70,7 @@ class SrsService
     }
 
     /**
-     * Busca questões pendentes de revisão SRS para o usuário.
+     * Busca questões pendentes de revisão para o usuário.
      *
      * @param  int $userId
      * @param  int $limite  Máximo de questões a retornar

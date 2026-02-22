@@ -65,7 +65,7 @@ Resultado:
   | Simulado Mesclado | Sorteio aleatório entre todos os tópicos do concurso |
   | Matéria Específica | Questões apenas de uma matéria selecionada |
   | Tópico Específico | Questões focadas em um único tópico (ex: "Soma") |
-  | Revisão SRS | Questões reagendadas pelo sistema de revisão espaçada |
+  | Revisão | Questões reagendadas pelo sistema de revisão espaçada |
 
 ### 3.2 Validação de Resposta
 - Feedback **instantâneo** ao selecionar uma alternativa:
@@ -114,7 +114,7 @@ Resultado:
 ### 5.2 Fila de Revisão
 - Ao iniciar uma bateria, o sistema verifica se há questões pendentes de revisão
 - Questões SRS são **priorizadas** e inseridas na bateria automaticamente
-- O usuário pode optar por bateria 100% de revisão (Modo "Revisão SRS")
+- O usuário pode optar por bateria 100% de revisão (Modo "Revisão")
 
 ---
 
