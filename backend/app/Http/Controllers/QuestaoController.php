@@ -177,7 +177,7 @@ class QuestaoController extends Controller
         // Verifica se o tópico pertence ao usuário
         $topico->materia->concurso()->where('user_id', $request->user()->id)->firstOrFail();
 
-        $tipoEfetivo = $tipo === 'misto' ? 'multipla_escolha' : $tipo;
+        $tipoEfetivo = $tipo;
         $difEfetiva = $this->resolverDificuldade($dificuldade, $request->user()->id, $topico->id);
 
         $questoesRaw = $this->gemini->gerarQuestoes(
@@ -210,7 +210,7 @@ class QuestaoController extends Controller
             'id' => $t->id,
         ])->toArray();
 
-        $questoesRaw = $this->gemini->gerarSimuladoMesclado($topicosParaGemini, $quantidade, $dificuldade);
+        $questoesRaw = $this->gemini->gerarSimuladoMesclado($topicosParaGemini, $quantidade, $dificuldade, $tipo);
 
         return $this->persistirQuestoesComTopico($questoesRaw, $materia->topicos->keyBy('nome'));
     }
@@ -245,7 +245,7 @@ class QuestaoController extends Controller
             throw new \RuntimeException('O concurso não possui tópicos cadastrados.');
         }
 
-        $questoesRaw = $this->gemini->gerarSimuladoMesclado($topicosParaGemini, $quantidade, $dificuldade);
+        $questoesRaw = $this->gemini->gerarSimuladoMesclado($topicosParaGemini, $quantidade, $dificuldade, $tipo);
 
         return $this->persistirQuestoesComTopico($questoesRaw, collect($topicosPorNome));
     }

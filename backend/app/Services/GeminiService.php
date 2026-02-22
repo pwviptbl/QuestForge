@@ -30,7 +30,7 @@ class GeminiService
      * @param  string $materia
      * @param  string $topico
      * @param  int    $quantidade
-     * @param  string $tipo       multipla_escolha | certo_errado
+     * @param  string $tipo       multipla_escolha | certo_errado | misto
      * @param  string $dificuldade facil | medio | dificil
      * @return array<int, array>  Lista de questões estruturadas
      */
@@ -46,7 +46,7 @@ class GeminiService
         $texto = $this->chamarApi($prompt, $config);
         $data = $this->extrairJson($texto);
 
-        $this->validarQuestoes($data);
+        $this->validarQuestoes($data, $tipo);
 
         return $data['questoes'];
     }
@@ -57,16 +57,22 @@ class GeminiService
      * @param  array<int, array{topico: string, materia: string}> $topicos
      * @param  int    $quantidade
      * @param  string $dificuldade facil | medio | dificil | adaptativa
+     * @param  string $tipo       multipla_escolha | certo_errado | misto
      * @return array<int, array>
      */
-    public function gerarSimuladoMesclado(array $topicos, int $quantidade, string $dificuldade): array
+    public function gerarSimuladoMesclado(
+        array $topicos,
+        int $quantidade,
+        string $dificuldade,
+        string $tipo
+    ): array
     {
-        $prompt = $this->montarPromptSimuladoMesclado($topicos, $quantidade, $dificuldade);
+        $prompt = $this->montarPromptSimuladoMesclado($topicos, $quantidade, $dificuldade, $tipo);
         $config = config('gemini.generation_config');
         $texto = $this->chamarApi($prompt, $config);
         $data = $this->extrairJson($texto);
 
-        $this->validarQuestoes($data);
+        $this->validarQuestoes($data, $tipo);
 
         return $data['questoes'];
     }
@@ -104,9 +110,17 @@ class GeminiService
         string $tipo,
         string $dificuldade
     ): string {
-        $tipoDescricao = $tipo === 'multipla_escolha'
-            ? 'múltipla escolha com exatamente 5 alternativas (A, B, C, D, E)'
-            : 'certo ou errado (resposta deve ser CERTO ou ERRADO)';
+        $tipoDescricao = match ($tipo) {
+            'multipla_escolha' => 'múltipla escolha com exatamente 5 alternativas (A, B, C, D, E)',
+            'certo_errado' => 'certo ou errado (resposta deve ser CERTO ou ERRADO)',
+            default => 'misto (combinar múltipla escolha e certo/errado)',
+        };
+
+        $regraTipo = match ($tipo) {
+            'multipla_escolha' => 'TODAS as questões devem ter "tipo": "multipla_escolha".',
+            'certo_errado' => 'TODAS as questões devem ter "tipo": "certo_errado".',
+            default => 'Quando usar "misto", distribua aproximadamente 70% múltipla escolha e 30% certo/errado.',
+        };
 
         $difDescricao = match ($dificuldade) {
             'facil' => 'fácil (conceitos básicos, definições diretas)',
@@ -124,14 +138,15 @@ Você é um gerador de questões de concurso público brasileiro. Sua ÚNICA fun
 4. As questões devem ser no estilo de bancas como CESPE, FCC, VUNESP e FGV.
 5. Cada questão deve ter um enunciado claro, direto e sem ambiguidades.
 6. Para múltipla escolha: exatamente UMA alternativa correta e 4 distratores plausíveis.
-7. NÃO inclua explicações, apenas a questão e a resposta correta.
+7. {$regraTipo}
+8. NÃO inclua explicações, apenas a questão e a resposta correta.
 
 RETORNE EXCLUSIVAMENTE um JSON válido no seguinte formato (sem markdown, sem texto adicional):
 {
   "questoes": [
     {
       "enunciado": "string",
-      "tipo": "multipla_escolha",
+      "tipo": "multipla_escolha|certo_errado",
       "dificuldade": "facil|medio|dificil",
       "alternativas": [
         {"letra": "A", "texto": "string"},
@@ -140,7 +155,7 @@ RETORNE EXCLUSIVAMENTE um JSON válido no seguinte formato (sem markdown, sem te
         {"letra": "D", "texto": "string"},
         {"letra": "E", "texto": "string"}
       ],
-      "resposta_correta": "A|B|C|D|E"
+      "resposta_correta": "A|B|C|D|E|CERTO|ERRADO"
     }
   ]
 }
@@ -153,7 +168,8 @@ PROMPT;
     private function montarPromptSimuladoMesclado(
         array $topicos,
         int $quantidade,
-        string $dificuldade
+        string $dificuldade,
+        string $tipo
     ): string {
         // Formata lista de tópicos para o prompt
         $listaTopicos = collect($topicos)
@@ -163,6 +179,12 @@ PROMPT;
         $distribuicaoDif = $dificuldade === 'adaptativa'
             ? 'Varie a dificuldade: aproximadamente 30% fácil, 50% média, 20% difícil.'
             : "Todas as questões devem ter dificuldade: {$dificuldade}.";
+
+        $regraTipo = match ($tipo) {
+            'multipla_escolha' => 'TODAS as questões devem ser de múltipla escolha (5 alternativas A-E).',
+            'certo_errado' => 'TODAS as questões devem ser de certo/errado (sem alternativas, resposta CERTO ou ERRADO).',
+            default => 'Mix de tipos: prefira múltipla escolha (5 alternativas A-E), com até 30% sendo certo/errado.',
+        };
 
         return <<<PROMPT
 Você é um gerador de questões de concurso público brasileiro. Gere um simulado MESCLADO.
@@ -175,7 +197,7 @@ REGRAS:
 2. {$distribuicaoDif}
 3. A ordem das questões deve ser ALEATÓRIA (não agrupe por tópico).
 4. Use estilo de bancas como CESPE, FCC, VUNESP e FGV.
-5. Mix de tipos: prefira múltipla escolha (5 alternativas A-E), com até 30% sendo certo/errado.
+5. {$regraTipo}
 
 RETORNE EXCLUSIVAMENTE um JSON válido (sem markdown, sem texto adicional):
 {
@@ -364,7 +386,7 @@ PROMPT;
      * @param  array $data
      * @throws \InvalidArgumentException
      */
-    private function validarQuestoes(array $data): void
+    private function validarQuestoes(array $data, string $tipoSolicitado = 'misto'): void
     {
         $questoes = $data['questoes'] ?? [];
 
@@ -378,6 +400,12 @@ PROMPT;
                 if (empty($q[$campo])) {
                     throw new \InvalidArgumentException("Questão #{$index}: campo '{$campo}' ausente ou vazio.");
                 }
+            }
+
+            if ($tipoSolicitado !== 'misto' && $q['tipo'] !== $tipoSolicitado) {
+                throw new \InvalidArgumentException(
+                    "Questão #{$index}: tipo retornado '{$q['tipo']}' diverge do tipo solicitado '{$tipoSolicitado}'."
+                );
             }
 
             // Validações específicas por tipo
