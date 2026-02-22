@@ -31,7 +31,7 @@ RUN rm /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copia configuração customizada do nginx (será criada)
-COPY docker/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expõe porta 80 (interna do container)
 EXPOSE 80
