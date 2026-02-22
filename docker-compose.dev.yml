@@ -1,3 +1,15 @@
+# ═══════════════════════════════════════════════════════════════
+# Docker Compose para DESENVOLVIMENTO (com hot reload)
+# ═══════════════════════════════════════════════════════════════
+#
+# USO:
+#   docker-compose -f docker-compose.dev.yml up -d
+#
+# Este arquivo mantém o Vite dev server para desenvolvimento local
+# com hot reload. Use docker-compose.yml para produção.
+#
+# ═══════════════════════════════════════════════════════════════
+
 services:
 
   # ─── Aplicação PHP (Laravel) ──────────────────────────────
@@ -5,7 +17,7 @@ services:
     build:
       context: ./backend
       dockerfile: ../docker/php/Dockerfile
-    container_name: questforge_app
+    container_name: questforge_app_dev
     restart: unless-stopped
     working_dir: /var/www/html
     env_file:
@@ -20,34 +32,38 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    # Não expõe portas - acesso apenas via nginx
 
-  # ─── Frontend React (Produção - Build Estático) ──────────
+  # ─── Frontend React (Dev Server com Hot Reload) ───────────
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: ../docker/frontend/Dockerfile
-    container_name: questforge_frontend
+    image: node:22-alpine
+    container_name: questforge_frontend_dev
     restart: unless-stopped
+    working_dir: /app
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     networks:
       - questforge_net
-    # Não expõe portas - acesso apenas via nginx
+    environment:
+      - VITE_API_URL=/api
 
-  # ─── Nginx (Gateway Principal - ÚNICA PORTA PÚBLICA) ─────
+  # ─── Nginx (Gateway) ──────────────────────────────────────
   nginx:
     image: nginx:1.27-alpine
-    container_name: questforge_nginx
+    container_name: questforge_nginx_dev
     restart: unless-stopped
     ports:
-      - "${NGINX_PORT:-80}:80"  # Porta 80 em produção
+      - "${NGINX_PORT:-8000}:80"
     volumes:
-      - ./backend:/var/www/html  # Para servir assets do Laravel
-      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./backend:/var/www/html
+      - ./docker/nginx/dev.conf:/etc/nginx/conf.d/default.conf
     networks:
       - questforge_net
     depends_on:
       - app
-      - frontend
 
   # ─── PostgreSQL (Banco de Dados) ─────────────────────────
   db:

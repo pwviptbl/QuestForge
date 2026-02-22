@@ -61,11 +61,30 @@ docker compose exec app php artisan migrate
 
 ### 4. Acesse a aplicação
 
-| Serviço       | URL / Host              |
-|---------------|------------------------|
+#### Produção (docker-compose.yml)
+
+| Serviço         | URL / Host              | Acesso        |
+|-----------------|------------------------|---------------|
+| **Aplicação**   | http://localhost       | Frontend + API |
+| **PostgreSQL**  | localhost:5432         | Apenas local  |
+| **Redis**       | localhost:6379         | Apenas local  |
+
+> **Frontend** e **Backend** são servidos pelo Nginx na porta 80.
+> Rotas `/api/*` são direcionadas ao Laravel, demais rotas ao React.
+
+#### Desenvolvimento (docker-compose.dev.yml)
+
+| Serviço         | URL / Host              |
+|-----------------|------------------------|
+| **Frontend**    | http://localhost:5173  |
 | **API Laravel** | http://localhost:8000  |
 | **PostgreSQL**  | localhost:5432         |
 | **Redis**       | localhost:6379         |
+
+```bash
+# Para rodar em modo desenvolvimento (com hot reload)
+docker-compose -f docker-compose.dev.yml up -d
+```
 
 ---
 
@@ -97,12 +116,28 @@ make artisan CMD='make:controller MeuController'
 
 ## 🐳 Containers Docker
 
-| Container            | Imagem                 | Porta exposta |
-|----------------------|------------------------|---------------|
-| `questforge_app`     | PHP 8.4-FPM (custom)   | —             |
-| `questforge_nginx`   | nginx:1.27-alpine      | 8000          |
-| `questforge_db`      | postgres:16-alpine     | 5432          |
-| `questforge_redis`   | redis:7-alpine         | 6379          |
+### Produção (docker-compose.yml)
+
+| Container              | Imagem                    | Porta Exposta | Acesso     |
+|------------------------|---------------------------|---------------|------------|
+| `questforge_nginx`     | nginx:1.27-alpine         | **80**        | ✅ Pública |
+| `questforge_frontend`  | Node 22 + Nginx (build)   | —             | ❌ Interna |
+| `questforge_app`       | PHP 8.4-FPM (custom)      | —             | ❌ Interna |
+| `questforge_db`        | postgres:16-alpine        | 5432 (localhost) | ❌ Interna |
+| `questforge_redis`     | redis:7-alpine            | 6379 (localhost) | ❌ Interna |
+
+> ✅ **Arquitetura Segura**: Apenas o Nginx é acessível publicamente.  
+> Frontend e Backend não têm portas expostas.
+
+### Desenvolvimento (docker-compose.dev.yml)
+
+| Container              | Imagem                 | Porta Exposta |
+|------------------------|------------------------|--------------|
+| `questforge_nginx_dev` | nginx:1.27-alpine      | 8000          |
+| `questforge_frontend_dev` | node:22-alpine (dev)| 5173          |
+| `questforge_app_dev`   | PHP 8.4-FPM (custom)   | —             |
+| `questforge_db`        | postgres:16-alpine     | 5432          |
+| `questforge_redis`     | redis:7-alpine         | 6379          |
 
 ---
 
@@ -129,16 +164,53 @@ questforge/
 
 ## 🖥️ Deploy na VPS
 
+### Modo Produção (Recomendado)
+
+**Características:**
+- Frontend buildado como arquivos estáticos otimizados
+- Nginx como gateway único na porta 80
+- Sem dev servers rodando
+- Máxima performance e segurança
+
 ```bash
 # Clone o repositório na VPS
 git clone https://github.com/seu-usuario/questforge.git
 cd questforge
 
 # Configure o .env de produção
-cp backend/.env.example backend/.env
-nano backend/.env  # Ajuste: APP_ENV=production, APP_DEBUG=false, GEMINI_API_KEY=...
+cp .env.example .env
+nano .env  # NGINX_PORT=80
 
-# Execute o script de deploy
+cp backend/.env.example backend/.env
+nano backend/.env  # APP_ENV=production, APP_DEBUG=false, GEMINI_API_KEY=...
+
+# Execute o deploy
+docker-compose build --no-cache
+docker-compose up -d
+
+# Inicializar banco
+docker-compose exec app php artisan migrate --force
+docker-compose exec app php artisan config:cache
+```
+
+### Modo Desenvolvimento (Opcional)
+
+Se você quiser desenvolver na VPS com hot reload:
+
+```bash
+# Use o docker-compose de desenvolvimento
+docker-compose -f docker-compose.dev.yml up -d
+
+# Acesso:
+# Frontend: http://SEU_IP:5173
+# Backend: http://SEU_IP:8000
+```
+
+> **⚠️ Importante**: O modo dev **não deve ser usado em produção**!
+
+### Script Automatizado
+
+```bash
 chmod +x deploy.sh
 ./deploy.sh
 ```
@@ -149,33 +221,60 @@ chmod +x deploy.sh
 
 ## 🛡️ Segurança (Produção)
 
-Para garantir que a aplicação rode com segurança em sua VPS, certas medidas a nível de infraestrutura e aplicação já estão configuradas:
+### Arquitetura de Segurança
 
-**1. Blindagem de Banco de Dados**
-As portas do PostgreSQL (`5432`) e Redis (`6379`) agora estão vinculadas estritamente ao `127.0.0.1` dentro do arquivo `docker-compose.yml`. Isso significa que o Docker **não irá ignorar o firewall** para expôr essas portas à rede externa. Elas ficarão invisíveis à internet mundial.
+```
+Internet → Firewall → Porta 80 (Nginx)
+                         ↓
+              ┌──────────┴──────────┐
+              ↓                     ↓
+         Frontend (interno)    /api → Backend (interno)
+                                     ↓
+                            PostgreSQL + Redis (internos)
+```
 
-**2. Cabeçalhos e Rate Limiting (API)**
-- A API conta ativamente com um **Middleware de Security Headers** que bloqueia tentativas de ataques XSS, Clickjacking (X-Frame-Options) e sniffing de mimetype (nosniff).
-- O backend possui **Rate Limiter (Throttle)** pré-configurado limitando a rota de login/registro (`auth/login`) para mitigar brute-force (max 5/min) e a rota de IA (`questoes/gerar`) blindando contra estouro de limites na API Gemini (max 15/min).
+**Princípios Implementados:**
 
-**3. Configuração do Firewall (Obrigatória da VPS)**
-Mesmo com o sistema seguro, é fundamental que o sistema Operacional (Ubuntu/Debian) bloqueie portas por padrão. Use o UFW:
+✅ **Gateway Único**: Nginx é o único ponto de entrada (porta 80)  
+✅ **Containers Isolados**: Frontend e Backend não são acessíveis diretamente  
+✅ **Banco Protegido**: PostgreSQL e Redis apenas na rede interna Docker  
+✅ **Build de Produção**: Frontend é servido como arquivos estáticos otimizados  
+✅ **Headers de Segurança**: XSS, Clickjacking, MIME-sniffing protections  
+✅ **Rate Limiting**: Proteção contra brute-force e spam na API  
+
+### Configuração Obrigatória do Firewall
+
+**IMPORTANTE**: Configure o firewall para permitir apenas portas essenciais:
 
 ```bash
-# Permita o SSH (Garante que você não perca acesso ao seu servidor)
-sudo ufw allow 22/tcp
+# ⚠️ Atenção: Teste SSH antes de ativar o firewall!
+sudo ufw allow 22/tcp comment 'SSH'
 
-# Portas essenciais p/ Aplicação
-sudo ufw allow 80/tcp     # HTTP 
-sudo ufw allow 443/tcp    # HTTPS
-sudo ufw allow 8000/tcp   # Backend API Laravel
-sudo ufw allow 5173/tcp   # Frontend Vite (se não estiver com nginx proxyando tudo)
+# Porta pública da aplicação
+sudo ufw allow 80/tcp comment 'HTTP'
+sudo ufw allow 443/tcp comment 'HTTPS (quando configurar SSL)'
 
-# Travar o resto e ativar o firewall
+# ❌ NÃO abra portas 5173, 8000, 5432, 6379 - elas devem ser inacessíveis!
+
+# Ativar firewall
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw enable
+
+# Verificar
+sudo ufw status verbose
 ```
+
+### Checklist de Segurança
+
+- [ ] `APP_DEBUG=false` em produção
+- [ ] Senhas fortes no `.env`
+- [ ] Firewall configurado (apenas 22, 80, 443)
+- [ ] Portas 5173, 8000, 5432, 6379 **não respondem externamente**
+- [ ] SSL/HTTPS configurado (Let's Encrypt)
+- [ ] Backups automáticos do banco
+
+📚 **Documentação completa**: [docs/SECURITY.md](./docs/SECURITY.md)
 
 ---
 
@@ -189,6 +288,7 @@ sudo ufw enable
 | [Engenharia de Prompts](./docs/04-engenharia-prompts.md) | Prompts para a API Gemini |
 | [Planejamento](./docs/05-planejamento.md) | Roadmap por fases |
 | [API Reference](./docs/06-api-reference.md) | Endpoints REST e contratos |
+| [**Guia de Segurança**](./docs/SECURITY.md) | **Firewall, portas, deploy seguro** |
 
 ---
 
