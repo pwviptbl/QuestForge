@@ -22,6 +22,17 @@ Plataforma de estudo orientada por IA com foco em **Active Recall**, **Revisão 
 - Aplicação: `http://SEU_DOMINIO_OU_IP`
 - API: `http://SEU_DOMINIO_OU_IP/api/*`
 
+## Primeiro administrador
+
+Após rodar as migrations, promova um usuário a admin via Tinker:
+
+```bash
+docker compose exec app php artisan tinker
+```
+```php
+User::where('email', 'seu@email.com')->update(['is_admin' => true]);
+```
+
 ## Segurança mínima para produção
 
 - `APP_ENV=production`

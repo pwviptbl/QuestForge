@@ -43,6 +43,8 @@ export function AuthProvider({ children }) {
     }, [])
 
     // ─── Cadastro ────────────────────────────────────────────────────
+    // Contas novas são criadas bloqueadas e aguardam aprovação do admin.
+    // O backend não retorna token, portanto não fazemos login automático.
     const register = useCallback(async (name, email, password, passwordConfirmation) => {
         const { data } = await api.post('/auth/register', {
             name,
@@ -50,10 +52,7 @@ export function AuthProvider({ children }) {
             password,
             password_confirmation: passwordConfirmation,
         })
-        localStorage.setItem('qf_token', data.token)
-        localStorage.setItem('qf_user', JSON.stringify(data.user))
-        setUser(data.user)
-        return data.user
+        return data
     }, [])
 
     // ─── Logout ──────────────────────────────────────────────────────

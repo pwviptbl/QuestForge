@@ -8,7 +8,10 @@ const NAV_ITEMS = [
     { to: '/quiz/config', icon: '⚡', label: 'Iniciar Questões' },
     { to: '/srs', icon: '🔄', label: 'Revisão' },
     { to: '/dashboard', icon: '📊', label: 'Dashboard' },
+    { to: '/perfil', icon: '👤', label: 'Perfil' },
 ]
+
+const ADMIN_ITEM = { to: '/admin', icon: '🛡️', label: 'Administração' }
 
 export default function Layout({ children, title }) {
     const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -99,6 +102,33 @@ export default function Layout({ children, title }) {
                         </NavLink>
                     ))}
 
+                    {/* Link de admin — visível apenas para administradores */}
+                    {user?.is_admin && (
+                        <>
+                            <div style={{ height: '1px', background: 'var(--border)', margin: '0.625rem 0.875rem' }} />
+                            <NavLink
+                                to={ADMIN_ITEM.to}
+                                onClick={() => setSidebarOpen(false)}
+                                style={({ isActive }) => ({
+                                    display: 'flex', alignItems: 'center', gap: '0.75rem',
+                                    padding: '0.7rem 0.875rem',
+                                    borderRadius: 'var(--radius-md)',
+                                    marginBottom: '0.25rem',
+                                    textDecoration: 'none',
+                                    transition: 'all 0.2s',
+                                    color: isActive ? '#f59e0b' : '#d97706',
+                                    background: isActive ? 'rgba(245,158,11,0.1)' : 'rgba(245,158,11,0.05)',
+                                    border: `1px solid ${isActive ? 'rgba(245,158,11,0.3)' : 'rgba(245,158,11,0.15)'}`,
+                                    fontWeight: isActive ? 600 : 500,
+                                    fontSize: '0.9rem',
+                                })}
+                            >
+                                <span style={{ fontSize: '1.1rem' }}>{ADMIN_ITEM.icon}</span>
+                                {ADMIN_ITEM.label}
+                            </NavLink>
+                        </>
+                    )}
+
                     {/* Novo concurso */}
                     <NavLink
                         to="/concursos/novo"
@@ -135,8 +165,12 @@ export default function Layout({ children, title }) {
                             <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {user?.name}
                             </div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                {user?.nivel}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{user?.nivel}</span>
+                                {user?.plano === 'pro'
+                                    ? <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: '999px', background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)', lineHeight: 1.4 }}>⭐ PRO</span>
+                                    : <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '0.1rem 0.4rem', borderRadius: '999px', background: 'rgba(100,116,139,0.15)', color: '#64748b', border: '1px solid rgba(100,116,139,0.2)', lineHeight: 1.4 }}>Free</span>
+                                }
                             </div>
                         </div>
                     </div>

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ConcursoController;
 use App\Http\Controllers\DashboardController;
@@ -38,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::put('/profile', [AuthController::class, 'updateProfile']);
+        Route::put('/password', [AuthController::class, 'changePassword']);
     });
 
     // ── Fase 2: Concursos / Editais ──────────────────────
@@ -69,4 +71,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // ── Fase 5: Dashboard ────────────────────────────────
     Route::get('dashboard/stats', [DashboardController::class, 'stats']);
     Route::get('dashboard/vulnerabilities', [DashboardController::class, 'vulnerabilities']);
-});
+    // ── Admin: Gestão de Usuários ──────────────────────
+    Route::middleware('admin')->prefix('admin')->group(function () {
+        Route::get('users', [AdminController::class, 'users']);
+        Route::put('users/{id}/toggle-admin', [AdminController::class, 'toggleAdmin']);
+        Route::put('users/{id}/toggle-block', [AdminController::class, 'toggleBlock']);
+        Route::put('users/{id}/plano', [AdminController::class, 'setPlano']);
+        Route::delete('users/{id}', [AdminController::class, 'destroy']);
+    });});

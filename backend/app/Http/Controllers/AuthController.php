@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
@@ -18,20 +19,16 @@ class AuthController extends Controller
      */
     public function register(RegisterRequest $request): JsonResponse
     {
-        // Cria o usuário com os dados validados (senha é hasheada pelo cast do model)
+        // Cria o usuário com os dados validados — conta bloqueada até aprovação do administrador
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => $request->password,
+            'name'       => $request->name,
+            'email'      => $request->email,
+            'password'   => $request->password,
+            'is_blocked' => true,
         ]);
 
-        // Gera o token Sanctum para o novo usuário
-        $token = $user->createToken('questforge-token')->plainTextToken;
-
         return response()->json([
-            'message' => 'Cadastro realizado com sucesso.',
-            'user' => $user,
-            'token' => $token,
+            'message' => 'Cadastro realizado com sucesso. Aguarde a aprovação de um administrador para acessar sua conta.',
         ], 201);
     }
 
@@ -51,6 +48,15 @@ class AuthController extends Controller
 
         /** @var User $user */
         $user = Auth::user();
+
+        // Impede login de usuários bloqueados / pendentes de aprovação
+        if ($user->is_blocked) {
+            Auth::logout();
+            return response()->json([
+                'message' => 'Sua conta está aguardando aprovação de um administrador. Você receberá acesso assim que sua conta for liberada.',
+                'code'    => 'ACCOUNT_PENDING',
+            ], 403);
+        }
 
         // Revoga tokens antigos para manter apenas um ativo por vez
         $user->tokens()->delete();
@@ -112,6 +118,41 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Perfil atualizado com sucesso.',
             'user' => $user->fresh(),
+        ]);
+    }
+
+    /**
+     * Altera a senha do usuário autenticado.
+     *
+     * PUT /api/auth/password
+     */
+    public function changePassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'current_password'      => ['required', 'string'],
+            'password'              => ['required', 'string', 'min:8', 'confirmed'],
+            'password_confirmation' => ['required', 'string'],
+        ]);
+
+        /** @var User $user */
+        $user = $request->user();
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            return response()->json([
+                'message' => 'Senha atual incorreta.',
+                'errors'  => ['current_password' => ['A senha atual está incorreta.']],
+            ], 422);
+        }
+
+        $user->update(['password' => $request->password]);
+
+        // Revoga todos os tokens e cria um novo
+        $user->tokens()->delete();
+        $token = $user->createToken('questforge-token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Senha alterada com sucesso.',
+            'token'   => $token,
         ]);
     }
 }

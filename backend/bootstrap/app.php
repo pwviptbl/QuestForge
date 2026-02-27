@@ -25,6 +25,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Define os domínios stateful do Sanctum (frontend em dev)
         $middleware->statefulApi();
+
+        // ─── Middleware de alias ──────────────────────────────────
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\IsAdmin::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // ─── Retorna erros 404 e 405 como JSON na rota /api ────────

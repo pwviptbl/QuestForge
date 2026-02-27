@@ -8,6 +8,8 @@ export default function Register() {
     const [form, setForm] = useState({ name: '', email: '', password: '', password_confirmation: '' })
     const [loading, setLoading] = useState(false)
     const [errors, setErrors] = useState({})
+    const [showPw, setShowPw] = useState(false)
+    const [showPwConfirm, setShowPwConfirm] = useState(false)
 
     const { register } = useAuth()
     const navigate = useNavigate()
@@ -21,8 +23,8 @@ export default function Register() {
         setLoading(true)
         try {
             await register(form.name, form.email, form.password, form.password_confirmation)
-            toast.success('Conta criada! Bem-vindo ao QuestForge 🎯')
-            navigate('/')
+            // Navega para login com flag de aprovação pendente (não depende de toast)
+            navigate('/login', { state: { pendingApproval: true } })
         } catch (err) {
             if (err.response?.status === 422) {
                 setErrors(err.response.data.errors || {})
@@ -89,28 +91,40 @@ export default function Register() {
                         <div className="grid-2" style={{ gap: '1rem' }}>
                             <div className="form-group" style={{ marginBottom: 0 }}>
                                 <label className="form-label">Senha</label>
-                                <input
-                                    id="register-password"
-                                    type="password"
-                                    className={`form-input ${errors.password ? 'error' : ''}`}
-                                    placeholder="mín. 8 caracteres"
-                                    value={form.password}
-                                    onChange={set('password')}
-                                    required
-                                />
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        id="register-password"
+                                        type={showPw ? 'text' : 'password'}
+                                        className={`form-input ${errors.password ? 'error' : ''}`}
+                                        placeholder="mín. 8 caracteres"
+                                        value={form.password}
+                                        onChange={set('password')}
+                                        required
+                                        style={{ paddingRight: '2.75rem' }}
+                                    />
+                                    <button type="button" onClick={() => setShowPw(v => !v)} tabIndex={-1} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.1rem', padding: '0.2rem', lineHeight: 1 }} title={showPw ? 'Ocultar' : 'Mostrar'}>
+                                        {showPw ? '🙈' : '👁'}
+                                    </button>
+                                </div>
                                 {errors.password && <span className="form-error">⚠ {errors.password[0]}</span>}
                             </div>
                             <div className="form-group" style={{ marginBottom: 0 }}>
                                 <label className="form-label">Confirmar senha</label>
-                                <input
-                                    id="register-password-confirm"
-                                    type="password"
-                                    className={`form-input ${errors.password_confirmation ? 'error' : ''}`}
-                                    placeholder="••••••••"
-                                    value={form.password_confirmation}
-                                    onChange={set('password_confirmation')}
-                                    required
-                                />
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        id="register-password-confirm"
+                                        type={showPwConfirm ? 'text' : 'password'}
+                                        className={`form-input ${errors.password_confirmation ? 'error' : ''}`}
+                                        placeholder="••••••••"
+                                        value={form.password_confirmation}
+                                        onChange={set('password_confirmation')}
+                                        required
+                                        style={{ paddingRight: '2.75rem' }}
+                                    />
+                                    <button type="button" onClick={() => setShowPwConfirm(v => !v)} tabIndex={-1} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.1rem', padding: '0.2rem', lineHeight: 1 }} title={showPwConfirm ? 'Ocultar' : 'Mostrar'}>
+                                        {showPwConfirm ? '🙈' : '👁'}
+                                    </button>
+                                </div>
                             </div>
                         </div>
 

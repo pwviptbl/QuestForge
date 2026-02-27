@@ -13,6 +13,8 @@ import QuizConfig from './pages/QuizConfig'
 import QuizPlay from './pages/QuizPlay'
 import Dashboard from './pages/Dashboard'
 import SrsResumo from './pages/SrsResumo'
+import Profile from './pages/Profile'
+import Admin from './pages/Admin'
 
 export default function App() {
     return (
@@ -49,8 +51,14 @@ export default function App() {
                         <Route path="/srs" element={
                             <ProtectedRoute><SrsResumo /></ProtectedRoute>
                         } />
+                        <Route path="/perfil" element={
+                            <ProtectedRoute><Profile /></ProtectedRoute>
+                        } />
+                        <Route path="/admin" element={
+                            <ProtectedRoute><Admin /></ProtectedRoute>
+                        } />
 
-                        {/* Fallback */}
+                        {/* Fallback */}}}
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                 </ToastProvider>

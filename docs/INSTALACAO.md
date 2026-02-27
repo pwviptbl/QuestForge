@@ -50,6 +50,17 @@ docker compose exec app php artisan optimize:clear
 docker compose exec app php artisan config:cache
 ```
 
+## 4.1) Primeiro administrador
+
+Promova um usuário já cadastrado a admin:
+
+```bash
+docker compose exec app php artisan tinker
+```
+```php
+User::where('email', 'seu@email.com')->update(['is_admin' => true]);
+```
+
 ## 5) Verificação
 
 ```bash

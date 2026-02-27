@@ -9,6 +9,7 @@ export default function Login() {
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
     const [errors, setErrors] = useState({})
+    const [showPw, setShowPw] = useState(false)
 
     const { login } = useAuth()
     const navigate = useNavigate()
@@ -17,9 +18,17 @@ export default function Login() {
 
     const from = location.state?.from?.pathname || '/'
 
+    // Vindo do cadastro → mostra aviso de aprovação imediatamente via location.state
+    const [pendingMsg, setPendingMsg] = useState(
+        location.state?.pendingApproval
+            ? 'Sua conta foi criada! Aguarde a aprovação de um administrador para acessar.'
+            : ''
+    )
+
     const handleSubmit = async (e) => {
         e.preventDefault()
         setErrors({})
+        setPendingMsg('')
         setLoading(true)
         try {
             await login(email, password)
@@ -30,6 +39,8 @@ export default function Login() {
                 setErrors(err.response.data.errors || {})
             } else if (err.response?.status === 401) {
                 setErrors({ email: ['Credenciais inválidas. Verifique e-mail e senha.'] })
+            } else if (err.response?.status === 403) {
+                setPendingMsg(err.response.data.message || 'Sua conta está aguardando aprovação de um administrador.')
             } else {
                 toast.error('Erro ao conectar com o servidor.')
             }
@@ -109,6 +120,25 @@ export default function Login() {
                         Não tem conta? <Link to="/register" style={{ color: 'var(--indigo-light)', fontWeight: 600 }}>Cadastre-se grátis</Link>
                     </p>
 
+                    {pendingMsg && (
+                        <div style={{
+                            background: 'rgba(245, 158, 11, 0.1)',
+                            border: '1px solid rgba(245, 158, 11, 0.4)',
+                            borderRadius: 'var(--radius-md)',
+                            padding: '0.875rem 1rem',
+                            marginBottom: '1.25rem',
+                            display: 'flex',
+                            gap: '0.625rem',
+                            alignItems: 'flex-start',
+                        }}>
+                            <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>⏳</span>
+                            <div>
+                                <p style={{ color: '#fbbf24', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.15rem' }}>Conta aguardando aprovação</p>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', lineHeight: 1.5 }}>{pendingMsg}</p>
+                            </div>
+                        </div>
+                    )}
+
                     <form onSubmit={handleSubmit}>
                         <div className="form-group">
                             <label className="form-label">E-mail</label>
@@ -127,15 +157,21 @@ export default function Login() {
 
                         <div className="form-group">
                             <label className="form-label">Senha</label>
-                            <input
-                                id="login-password"
-                                type="password"
-                                className={`form-input ${errors.password ? 'error' : ''}`}
-                                placeholder="••••••••"
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                                required
-                            />
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    id="login-password"
+                                    type={showPw ? 'text' : 'password'}
+                                    className={`form-input ${errors.password ? 'error' : ''}`}
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                    required
+                                    style={{ paddingRight: '2.75rem' }}
+                                />
+                                <button type="button" onClick={() => setShowPw(v => !v)} tabIndex={-1} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.1rem', padding: '0.2rem', lineHeight: 1 }} title={showPw ? 'Ocultar senha' : 'Mostrar senha'}>
+                                    {showPw ? '🙈' : '👁'}
+                                </button>
+                            </div>
                             {errors.password && <span className="form-error">⚠ {errors.password[0]}</span>}
                         </div>
 

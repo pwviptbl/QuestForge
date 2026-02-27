@@ -24,6 +24,9 @@ class User extends Authenticatable
         'nivel',
         'pomodoro_duracao',
         'meta_diaria_questoes',
+        'is_admin',
+        'is_blocked',
+        'plano',
     ];
 
     /**
@@ -48,6 +51,9 @@ class User extends Authenticatable
             'password' => 'hashed',
             'pomodoro_duracao' => 'integer',
             'meta_diaria_questoes' => 'integer',
+            'is_admin' => 'boolean',
+            'is_blocked' => 'boolean',
+            'plano' => 'string',
         ];
     }
 
