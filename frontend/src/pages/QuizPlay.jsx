@@ -13,6 +13,7 @@ export default function QuizPlay() {
     const { user } = useAuth()
 
     const questoes = location.state?.questoes || []
+    const modo = location.state?.config?.modo || null
     const pomodoro = usePomodoro(user?.pomodoro_duracao || 25)
 
     const [idx, setIdx] = useState(0)         // questão atual
@@ -52,6 +53,7 @@ export default function QuizPlay() {
                 questao_id: questao.id,
                 resposta_usuario: selecionada,
                 tempo_resposta_seg: tempo,
+                modo: modo,
             })
             setResponseId(data.response_id)
             setResultados(prev => [...prev, { questao_id: questao.id, acertou: isAcerto }])

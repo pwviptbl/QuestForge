@@ -58,9 +58,10 @@ class QuestaoController extends Controller
     public function registrarResposta(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'questao_id' => ['required', 'integer', 'exists:questoes,id'],
-            'resposta_usuario' => ['required', 'string', 'max:10'],
+            'questao_id'         => ['required', 'integer', 'exists:questoes,id'],
+            'resposta_usuario'   => ['required', 'string', 'max:10'],
             'tempo_resposta_seg' => ['nullable', 'integer', 'min:0', 'max:3600'],
+            'modo'               => ['nullable', 'string', 'in:revisao_srs,topico,materia,concurso'],
         ]);
 
         $questao = Questao::with('alternativas')->findOrFail($validated['questao_id']);
@@ -75,13 +76,22 @@ class QuestaoController extends Controller
             'tempo_resposta_seg' => $validated['tempo_resposta_seg'] ?? null,
         ]);
 
-        // Errou → cria SRS card para revisão em 1 dia
+        // Atualiza o SRS:
+        // - Errou → sempre cria/reseta card (revisão em 1 dia)
+        // - Acertou EM REVISÃO SRS → avança o card (pode virar dominado)
         if (!$acertou) {
             $this->srs->criarOuAtualizar(
                 userId: $request->user()->id,
                 questaoId: $questao->id,
                 topicoId: $questao->topico_id,
                 acertou: false
+            );
+        } elseif (($validated['modo'] ?? null) === 'revisao_srs') {
+            $this->srs->criarOuAtualizar(
+                userId: $request->user()->id,
+                questaoId: $questao->id,
+                topicoId: $questao->topico_id,
+                acertou: true
             );
         }
 
