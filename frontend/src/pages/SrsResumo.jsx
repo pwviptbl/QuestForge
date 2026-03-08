@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Layout from '../components/Layout'
 import Spinner from '../components/Spinner'
 import { useToast } from '../components/Toast'
+import { useConcursoFocus } from '../contexts/ConcursoFocusContext'
 import api from '../api/client'
 
 export default function SrsResumo() {
@@ -10,16 +11,23 @@ export default function SrsResumo() {
     const [loading, setLoading] = useState(true)
     const navigate = useNavigate()
     const toast = useToast()
+    const { focusedConcurso, focusedConcursoId } = useConcursoFocus()
+    const title = focusedConcurso
+        ? `Revisão: ${focusedConcurso.nome}`
+        : focusedConcursoId !== null
+            ? 'Revisão do Concurso em Foco'
+            : 'Revisão Espaçada'
 
     useEffect(() => {
+        setLoading(true)
         api.get('/srs/resumo')
             .then(({ data }) => setResumo(data))
             .catch(() => toast.error('Erro ao carregar revisão espaçada.'))
             .finally(() => setLoading(false))
-    }, [])
+    }, [focusedConcursoId])
 
     if (loading) return (
-        <Layout title="Revisão Espaçada">
+        <Layout title={title}>
             <div className="flex-center" style={{ padding: '5rem' }}><Spinner size="lg" /></div>
         </Layout>
     )
@@ -30,7 +38,27 @@ export default function SrsResumo() {
     const dominadoPct = total > 0 ? Math.round((dominado / total) * 100) : 0
 
     return (
-        <Layout title="Revisão Espaçada">
+        <Layout title={title}>
+            <div
+                className="card"
+                style={{
+                    marginBottom: '1.5rem',
+                    background: focusedConcurso ? 'rgba(6,182,212,0.06)' : 'var(--bg-glass)',
+                    border: focusedConcurso ? '1px solid rgba(6,182,212,0.2)' : '1px solid var(--border)',
+                }}
+            >
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
+                    Escopo da revisão
+                </div>
+                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {focusedConcurso
+                        ? `Somente ${focusedConcurso.nome}`
+                        : focusedConcursoId !== null
+                            ? 'Somente o concurso em foco atual'
+                            : 'Todos os concursos'}
+                </div>
+            </div>
+
             {/* ─── Stats ────────────────────────────────────────── */}
             <div className="grid-4" style={{ marginBottom: '2rem' }}>
                 {[

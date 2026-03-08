@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useConcursoFocus } from '../contexts/ConcursoFocusContext'
 import { useToast } from './Toast'
 
 const NAV_ITEMS = [
@@ -16,6 +17,14 @@ const ADMIN_ITEM = { to: '/admin', icon: '🛡️', label: 'Administração' }
 export default function Layout({ children, title }) {
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const { user, logout } = useAuth()
+    const {
+        concursos,
+        concursosLoading,
+        focusedConcursoId,
+        focusedConcurso,
+        setFocusedConcursoId,
+        updatingFocus,
+    } = useConcursoFocus()
     const navigate = useNavigate()
     const toast = useToast()
 
@@ -23,6 +32,16 @@ export default function Layout({ children, title }) {
         await logout()
         toast.success('Até logo!')
         navigate('/login')
+    }
+
+    const handleFocusChange = async (event) => {
+        try {
+            const nextValue = event.target.value === '' ? null : Number(event.target.value)
+            await setFocusedConcursoId(nextValue)
+            toast.success(nextValue === null ? 'Visão geral ativada.' : 'Concurso em foco atualizado.')
+        } catch {
+            toast.error('Erro ao atualizar o concurso em foco.')
+        }
     }
 
     return (
@@ -218,9 +237,51 @@ export default function Layout({ children, title }) {
                         backdropFilter: 'blur(20px)',
                         position: 'sticky', top: 0, zIndex: 10,
                     }}>
-                        <h1 style={{ fontSize: '1.4rem', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>
-                            {title}
-                        </h1>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '1rem',
+                            flexWrap: 'wrap',
+                        }}>
+                            <h1 style={{ fontSize: '1.4rem', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>
+                                {title}
+                            </h1>
+
+                            <div style={{ minWidth: 240, marginLeft: 'auto' }}>
+                                <label
+                                    htmlFor="concurso-foco-global"
+                                    style={{
+                                        display: 'block',
+                                        fontSize: '0.72rem',
+                                        color: 'var(--text-muted)',
+                                        marginBottom: '0.35rem',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.04em',
+                                    }}
+                                >
+                                    Concurso em foco
+                                </label>
+                                <select
+                                    id="concurso-foco-global"
+                                    className="form-input"
+                                    value={focusedConcursoId ?? ''}
+                                    onChange={handleFocusChange}
+                                    disabled={concursosLoading || updatingFocus}
+                                    style={{ minWidth: 240 }}
+                                >
+                                    <option value="">Todos os concursos</option>
+                                    {focusedConcursoId !== null && !focusedConcurso && (
+                                        <option value={focusedConcursoId}>Concurso em foco atual</option>
+                                    )}
+                                    {concursos.map(concurso => (
+                                        <option key={concurso.id} value={concurso.id}>
+                                            {concurso.nome}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
                     </header>
                 )}
 

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\SrsCard;
 use App\Services\SrsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,12 +21,13 @@ class SrsController extends Controller
     public function pendentes(Request $request): JsonResponse
     {
         $limite = min((int) $request->get('limite', 20), 50);
-        $questoes = $this->srs->buscarPendentes($request->user()->id, $limite);
+        $concursoFocoId = $request->user()->concurso_foco_id;
+        $questoes = $this->srs->buscarPendentes($request->user()->id, $limite, $concursoFocoId);
 
         return response()->json([
             'pendentes' => $questoes,
-            'total' => $this->srs->contarPendentes($request->user()->id),
-            'por_materia' => $this->srs->pendentsPorMateria($request->user()->id),
+            'total' => $this->srs->contarPendentes($request->user()->id, $concursoFocoId),
+            'por_materia' => $this->srs->pendentsPorMateria($request->user()->id, $concursoFocoId),
         ]);
     }
 
@@ -39,15 +39,17 @@ class SrsController extends Controller
     public function resumo(Request $request): JsonResponse
     {
         $userId = $request->user()->id;
+        $concursoFocoId = $request->user()->concurso_foco_id;
+        $cardsQuery = $this->srs->scopedQuery($userId, $concursoFocoId);
 
         // Total de cards
-        $total = SrsCard::where('user_id', $userId)->count();
-        $dominado = SrsCard::where('user_id', $userId)->where('status', 'dominado')->count();
-        $pendente = SrsCard::where('user_id', $userId)->where('status', 'pendente')->count();
-        $vencidos = $this->srs->contarPendentes($userId);
+        $total = (clone $cardsQuery)->count();
+        $dominado = (clone $cardsQuery)->where('status', 'dominado')->count();
+        $pendente = (clone $cardsQuery)->where('status', 'pendente')->count();
+        $vencidos = $this->srs->contarPendentes($userId, $concursoFocoId);
 
         // Próximas 7 dias de revisões
-        $agenda = SrsCard::where('user_id', $userId)
+        $agenda = (clone $cardsQuery)
             ->where('status', 'pendente')
             ->where('proxima_revisao', '>', now())
             ->where('proxima_revisao', '<=', now()->addDays(7))
@@ -62,7 +64,7 @@ class SrsController extends Controller
             'pendente' => $pendente,
             'vencidos' => $vencidos,
             'agenda_7d' => $agenda,
-            'por_materia' => $this->srs->pendentsPorMateria($userId),
+            'por_materia' => $this->srs->pendentsPorMateria($userId, $concursoFocoId),
         ]);
     }
 
@@ -74,7 +76,9 @@ class SrsController extends Controller
      */
     public function resetar(Request $request, int $id): JsonResponse
     {
-        $card = SrsCard::where('user_id', $request->user()->id)->findOrFail($id);
+        $card = $this->srs
+            ->scopedQuery($request->user()->id, $request->user()->concurso_foco_id)
+            ->findOrFail($id);
 
         $card->update([
             'repeticoes' => 0,
@@ -98,7 +102,8 @@ class SrsController extends Controller
     {
         $status = $request->get('status', 'pendente');
 
-        $cards = SrsCard::where('user_id', $request->user()->id)
+        $cards = $this->srs
+            ->scopedQuery($request->user()->id, $request->user()->concurso_foco_id)
             ->when($status !== 'todos', fn($q) => $q->where('status', $status))
             ->with('questao:id,enunciado,tipo,dificuldade,resposta_correta', 'topico:id,nome')
             ->orderBy('proxima_revisao')

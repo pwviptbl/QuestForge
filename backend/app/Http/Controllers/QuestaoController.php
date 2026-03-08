@@ -265,7 +265,11 @@ class QuestaoController extends Controller
      */
     private function gerarRevisaoSrs(Request $request, int $quantidade): array
     {
-        $questoes = $this->srs->buscarPendentes($request->user()->id, $quantidade);
+        $questoes = $this->srs->buscarPendentes(
+            $request->user()->id,
+            $quantidade,
+            $request->user()->concurso_foco_id
+        );
 
         return $questoes->map(fn($q) => $q->load('alternativas', 'topico.materia'))->toArray();
     }

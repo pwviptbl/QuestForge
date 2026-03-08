@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\SrsCard;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Support\Collection;
 
 /**
@@ -70,15 +71,31 @@ class SrsService
     }
 
     /**
+     * Query-base dos cards SRS dentro do escopo do usuário e do concurso em foco.
+     */
+    public function scopedQuery(int $userId, ?int $concursoId = null): EloquentBuilder
+    {
+        return SrsCard::query()
+            ->where('srs_cards.user_id', $userId)
+            ->when(
+                $concursoId !== null,
+                fn(EloquentBuilder $query) => $query->whereHas(
+                    'topico.materia',
+                    fn(EloquentBuilder $materiaQuery) => $materiaQuery->where('concurso_id', $concursoId)
+                )
+            );
+    }
+
+    /**
      * Busca questões pendentes de revisão para o usuário.
      *
      * @param  int $userId
      * @param  int $limite  Máximo de questões a retornar
      * @return Collection<SrsCard>
      */
-    public function buscarPendentes(int $userId, int $limite = 20): Collection
+    public function buscarPendentes(int $userId, int $limite = 20, ?int $concursoId = null): Collection
     {
-        return SrsCard::where('user_id', $userId)
+        return $this->scopedQuery($userId, $concursoId)
             ->where('status', 'pendente')
             ->where('proxima_revisao', '<=', now())
             ->with('questao.alternativas', 'questao.topico.materia')
@@ -94,9 +111,9 @@ class SrsService
      * @param  int $userId
      * @return int
      */
-    public function contarPendentes(int $userId): int
+    public function contarPendentes(int $userId, ?int $concursoId = null): int
     {
-        return SrsCard::where('user_id', $userId)
+        return $this->scopedQuery($userId, $concursoId)
             ->where('status', 'pendente')
             ->where('proxima_revisao', '<=', now())
             ->count();
@@ -108,15 +125,17 @@ class SrsService
      * @param  int $userId
      * @return array
      */
-    public function pendentsPorMateria(int $userId): array
+    public function pendentsPorMateria(int $userId, ?int $concursoId = null): array
     {
-        return SrsCard::where('srs_cards.user_id', $userId)
+        return SrsCard::query()
+            ->where('srs_cards.user_id', $userId)
             ->where('srs_cards.status', 'pendente')
             ->where('srs_cards.proxima_revisao', '<=', now())
             ->join('topicos', 'topicos.id', '=', 'srs_cards.topico_id')
             ->join('materias', 'materias.id', '=', 'topicos.materia_id')
+            ->when($concursoId !== null, fn($query) => $query->where('materias.concurso_id', $concursoId))
             ->selectRaw('materias.nome as materia, COUNT(*) as pendentes')
-            ->groupBy('materias.nome')
+            ->groupBy('materias.id', 'materias.nome')
             ->orderByDesc('pendentes')
             ->get()
             ->toArray();

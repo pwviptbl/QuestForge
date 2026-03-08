@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import { ConcursoFocusProvider } from './contexts/ConcursoFocusContext'
 import { ToastProvider } from './components/Toast'
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -21,46 +22,48 @@ export default function App() {
         <BrowserRouter>
             <AuthProvider>
                 <ToastProvider>
-                    <Routes>
-                        {/* Rotas públicas */}
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/register" element={<Register />} />
+                    <ConcursoFocusProvider>
+                        <Routes>
+                            {/* Rotas públicas */}
+                            <Route path="/login" element={<Login />} />
+                            <Route path="/register" element={<Register />} />
 
-                        {/* Rotas protegidas */}
-                        <Route path="/" element={
-                            <ProtectedRoute><Home /></ProtectedRoute>
-                        } />
-                        <Route path="/concursos/novo" element={
-                            <ProtectedRoute><EditalForm /></ProtectedRoute>
-                        } />
-                        <Route path="/concursos/:id" element={
-                            <ProtectedRoute><ConcursoDetail /></ProtectedRoute>
-                        } />
-                        <Route path="/concursos/:id/editar" element={
-                            <ProtectedRoute><EditalForm /></ProtectedRoute>
-                        } />
-                        <Route path="/quiz/config" element={
-                            <ProtectedRoute><QuizConfig /></ProtectedRoute>
-                        } />
-                        <Route path="/quiz/play" element={
-                            <ProtectedRoute><QuizPlay /></ProtectedRoute>
-                        } />
-                        <Route path="/dashboard" element={
-                            <ProtectedRoute><Dashboard /></ProtectedRoute>
-                        } />
-                        <Route path="/srs" element={
-                            <ProtectedRoute><SrsResumo /></ProtectedRoute>
-                        } />
-                        <Route path="/perfil" element={
-                            <ProtectedRoute><Profile /></ProtectedRoute>
-                        } />
-                        <Route path="/admin" element={
-                            <ProtectedRoute><Admin /></ProtectedRoute>
-                        } />
+                            {/* Rotas protegidas */}
+                            <Route path="/" element={
+                                <ProtectedRoute><Home /></ProtectedRoute>
+                            } />
+                            <Route path="/concursos/novo" element={
+                                <ProtectedRoute><EditalForm /></ProtectedRoute>
+                            } />
+                            <Route path="/concursos/:id" element={
+                                <ProtectedRoute><ConcursoDetail /></ProtectedRoute>
+                            } />
+                            <Route path="/concursos/:id/editar" element={
+                                <ProtectedRoute><EditalForm /></ProtectedRoute>
+                            } />
+                            <Route path="/quiz/config" element={
+                                <ProtectedRoute><QuizConfig /></ProtectedRoute>
+                            } />
+                            <Route path="/quiz/play" element={
+                                <ProtectedRoute><QuizPlay /></ProtectedRoute>
+                            } />
+                            <Route path="/dashboard" element={
+                                <ProtectedRoute><Dashboard /></ProtectedRoute>
+                            } />
+                            <Route path="/srs" element={
+                                <ProtectedRoute><SrsResumo /></ProtectedRoute>
+                            } />
+                            <Route path="/perfil" element={
+                                <ProtectedRoute><Profile /></ProtectedRoute>
+                            } />
+                            <Route path="/admin" element={
+                                <ProtectedRoute><Admin /></ProtectedRoute>
+                            } />
 
-                        {/* Fallback */}}}
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                    </Routes>
+                            {/* Fallback */}
+                            <Route path="*" element={<Navigate to="/" replace />} />
+                        </Routes>
+                    </ConcursoFocusProvider>
                 </ToastProvider>
             </AuthProvider>
         </BrowserRouter>

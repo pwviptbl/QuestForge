@@ -3,12 +3,14 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import Layout from '../components/Layout'
 import Spinner from '../components/Spinner'
 import { useToast } from '../components/Toast'
+import { useConcursoFocus } from '../contexts/ConcursoFocusContext'
 import api from '../api/client'
 
 export default function ConcursoDetail() {
     const { id } = useParams()
     const navigate = useNavigate()
     const toast = useToast()
+    const { focusedConcursoId, setFocusedConcursoId, updatingFocus } = useConcursoFocus()
 
     const [concurso, setConcurso] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -28,6 +30,16 @@ export default function ConcursoDetail() {
     if (!concurso) return null
 
     const totalTopicos = concurso.materias?.reduce((acc, m) => acc + (m.topicos?.length || 0), 0) || 0
+    const isFocused = focusedConcursoId === concurso.id
+
+    const handleSetFocus = async () => {
+        try {
+            await setFocusedConcursoId(concurso.id)
+            toast.success('Concurso definido como foco.')
+        } catch {
+            toast.error('Erro ao definir o concurso em foco.')
+        }
+    }
 
     return (
         <Layout title={concurso.nome}>
@@ -48,6 +60,13 @@ export default function ConcursoDetail() {
 
             {/* ─── Ações ──────────────────────────────────────── */}
             <div className="flex" style={{ gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+                <button
+                    className={isFocused ? 'btn btn-secondary' : 'btn btn-primary'}
+                    onClick={handleSetFocus}
+                    disabled={isFocused || updatingFocus}
+                >
+                    {isFocused ? '🎯 Em foco' : '🎯 Definir como foco'}
+                </button>
                 <button
                     className="btn btn-primary"
                     onClick={() => navigate(`/quiz/config?modo=concurso&concurso_id=${concurso.id}`)}

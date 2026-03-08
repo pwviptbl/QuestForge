@@ -1,38 +1,54 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Layout from '../components/Layout'
 import Spinner from '../components/Spinner'
 import Modal from '../components/Modal'
 import { useToast } from '../components/Toast'
+import { useConcursoFocus } from '../contexts/ConcursoFocusContext'
 import api from '../api/client'
 
 export default function Home() {
-    const [concursos, setConcursos] = useState([])
-    const [loading, setLoading] = useState(true)
     const [deleting, setDeleting] = useState(null)
     const [modalDel, setModalDel] = useState(null)
+    const {
+        concursos,
+        concursosLoading,
+        concursosLoaded,
+        concursoError,
+        refreshConcursos,
+        focusedConcursoId,
+        setFocusedConcursoId,
+        updatingFocus,
+    } = useConcursoFocus()
     const navigate = useNavigate()
     const toast = useToast()
-
-    useEffect(() => {
-        api.get('/concursos')
-            .then(({ data }) => setConcursos(data.concursos))
-            .catch(() => toast.error('Erro ao carregar concursos.'))
-            .finally(() => setLoading(false))
-    }, [])
 
     const handleDelete = async () => {
         if (!modalDel) return
         setDeleting(modalDel.id)
         try {
             await api.delete(`/concursos/${modalDel.id}`)
-            setConcursos(prev => prev.filter(c => c.id !== modalDel.id))
+            if (focusedConcursoId === modalDel.id) {
+                await setFocusedConcursoId(null)
+            }
+            await refreshConcursos()
             toast.success('Concurso excluído.')
         } catch {
             toast.error('Erro ao excluir concurso.')
         } finally {
             setDeleting(null)
             setModalDel(null)
+        }
+    }
+
+    const handleSetFocus = async (event, concursoId) => {
+        event.stopPropagation()
+
+        try {
+            await setFocusedConcursoId(concursoId)
+            toast.success('Concurso definido como foco.')
+        } catch {
+            toast.error('Erro ao definir o concurso em foco.')
         }
     }
 
@@ -51,14 +67,27 @@ export default function Home() {
             </div>
 
             {/* Loading */}
-            {loading && (
+            {concursosLoading && !concursosLoaded && (
                 <div className="flex-center" style={{ padding: '4rem' }}>
                     <Spinner size="lg" />
                 </div>
             )}
 
+            {concursoError && (
+                <div className="empty-state animate-fade-in">
+                    <div className="empty-state-icon">⚠️</div>
+                    <h3>Erro ao carregar concursos</h3>
+                    <p style={{ maxWidth: 350 }}>
+                        Não foi possível buscar seus concursos agora.
+                    </p>
+                    <button className="btn btn-primary" onClick={() => refreshConcursos().catch(() => {})}>
+                        Tentar novamente
+                    </button>
+                </div>
+            )}
+
             {/* Empty state */}
-            {!loading && concursos.length === 0 && (
+            {!concursosLoading && !concursoError && concursos.length === 0 && (
                 <div className="empty-state animate-fade-in">
                     <div className="empty-state-icon">📚</div>
                     <h3>Nenhum concurso cadastrado</h3>
@@ -72,9 +101,12 @@ export default function Home() {
             )}
 
             {/* Lista de concursos */}
-            {!loading && concursos.length > 0 && (
+            {!concursosLoading && !concursoError && concursos.length > 0 && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
-                    {concursos.map((c, i) => (
+                    {concursos.map((c, i) => {
+                        const isFocused = focusedConcursoId === c.id
+
+                        return (
                         <div
                             key={c.id}
                             className="card animate-fade-in"
@@ -83,9 +115,16 @@ export default function Home() {
                         >
                             {/* Badge de matérias */}
                             <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                                <span className="badge badge-indigo">
-                                    📚 {c.materias_count} matéria{c.materias_count !== 1 ? 's' : ''}
-                                </span>
+                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                    <span className="badge badge-indigo">
+                                        📚 {c.materias_count} matéria{c.materias_count !== 1 ? 's' : ''}
+                                    </span>
+                                    {isFocused && (
+                                        <span className="badge badge-success">
+                                            🎯 Em foco
+                                        </span>
+                                    )}
+                                </div>
                                 {c.data_prova && (
                                     <span className="badge badge-warning">
                                         📅 {new Date(c.data_prova).toLocaleDateString('pt-BR')}
@@ -121,6 +160,13 @@ export default function Home() {
                             {/* Ações */}
                             <div className="flex" style={{ gap: '0.5rem', marginTop: 'auto' }} onClick={e => e.stopPropagation()}>
                                 <button
+                                    className={isFocused ? 'btn btn-secondary btn-sm' : 'btn btn-primary btn-sm'}
+                                    onClick={(event) => handleSetFocus(event, c.id)}
+                                    disabled={isFocused || updatingFocus}
+                                >
+                                    {isFocused ? '🎯 Em foco' : '🎯 Foco'}
+                                </button>
+                                <button
                                     className="btn btn-primary btn-sm"
                                     style={{ flex: 1 }}
                                     onClick={() => navigate(`/quiz/config?concurso_id=${c.id}`)}
@@ -147,7 +193,8 @@ export default function Home() {
                                 </button>
                             </div>
                         </div>
-                    ))}
+                        )
+                    })}
                 </div>
             )}
 

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\UserResponse;
 use App\Services\SrsService;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,15 +23,16 @@ class DashboardController extends Controller
     public function stats(Request $request): JsonResponse
     {
         $userId = $request->user()->id;
+        $concursoFocoId = $request->user()->concurso_foco_id;
 
         return response()->json([
-            'geral' => $this->calcularGeral($userId),
-            'por_materia' => $this->calcularPorMateria($userId),
-            'evolucao' => $this->calcularEvolucao($userId),
-            'vulnerabilidades' => $this->calcularVulnerabilidades($userId),
+            'geral' => $this->calcularGeral($userId, $concursoFocoId),
+            'por_materia' => $this->calcularPorMateria($userId, $concursoFocoId),
+            'evolucao' => $this->calcularEvolucao($userId, $concursoFocoId),
+            'vulnerabilidades' => $this->calcularVulnerabilidades($userId, $concursoFocoId),
             'srs' => [
-                'pendentes' => $this->srs->contarPendentes($userId),
-                'por_materia' => $this->srs->pendentsPorMateria($userId),
+                'pendentes' => $this->srs->contarPendentes($userId, $concursoFocoId),
+                'por_materia' => $this->srs->pendentsPorMateria($userId, $concursoFocoId),
             ],
             'pomodoro' => $this->calcularPomodoro($userId),
         ]);
@@ -46,8 +47,9 @@ class DashboardController extends Controller
     {
         $userId = $request->user()->id;
         $limite = min((int) $request->get('limite', 10), 30);
+        $concursoFocoId = $request->user()->concurso_foco_id;
 
-        $dados = $this->calcularVulnerabilidadesTopicos($userId, $limite);
+        $dados = $this->calcularVulnerabilidadesTopicos($userId, $limite, $concursoFocoId);
 
         return response()->json([
             'vulnerabilidades' => $dados,
@@ -61,10 +63,11 @@ class DashboardController extends Controller
     /**
      * Métricas gerais do usuário.
      */
-    private function calcularGeral(int $userId): array
+    private function calcularGeral(int $userId, ?int $concursoId): array
     {
-        $base = DB::table('user_responses')
-            ->where('user_id', $userId)
+        $query = $this->respostasQuery($userId, $concursoId);
+
+        $base = (clone $query)
             ->selectRaw('COUNT(*) as total, SUM(CASE WHEN acertou THEN 1 ELSE 0 END) as acertos')
             ->first();
 
@@ -72,11 +75,11 @@ class DashboardController extends Controller
         $acertos = $base->acertos ?? 0;
 
         // Sequência de dias com pelo menos 1 resposta
-        $sequencia = $this->calcularSequenciaDias($userId);
+        $sequencia = $this->calcularSequenciaDias($userId, $concursoId);
 
         // Questões hoje
-        $hoje = UserResponse::where('user_id', $userId)
-            ->whereDate('created_at', today())
+        $hoje = (clone $query)
+            ->whereDate('ur.created_at', today())
             ->count();
 
         return [
@@ -91,14 +94,9 @@ class DashboardController extends Controller
     /**
      * Questões respondidas e taxa de acerto por matéria.
      */
-    private function calcularPorMateria(int $userId): array
+    private function calcularPorMateria(int $userId, ?int $concursoId): array
     {
-        return DB::table('user_responses as ur')
-            ->join('questoes as q', 'q.id', '=', 'ur.questao_id')
-            ->join('topicos as t', 't.id', '=', 'q.topico_id')
-            ->join('materias as m', 'm.id', '=', 't.materia_id')
-            ->join('concursos as c', 'c.id', '=', 'm.concurso_id')
-            ->where('ur.user_id', $userId)
+        return $this->respostasQuery($userId, $concursoId)
             ->selectRaw('
                 m.nome as materia,
                 COUNT(*) as total,
@@ -114,18 +112,17 @@ class DashboardController extends Controller
     /**
      * Evolução da taxa de acerto dos últimos 7 dias.
      */
-    private function calcularEvolucao(int $userId): array
+    private function calcularEvolucao(int $userId, ?int $concursoId): array
     {
-        $dados = DB::table('user_responses')
-            ->where('user_id', $userId)
-            ->where('created_at', '>=', now()->subDays(6)->startOfDay())
+        $dados = $this->respostasQuery($userId, $concursoId)
+            ->where('ur.created_at', '>=', now()->subDays(6)->startOfDay())
             ->selectRaw("
-                DATE(created_at) as data,
+                DATE(ur.created_at) as data,
                 COUNT(*) as total,
-                SUM(CASE WHEN acertou THEN 1 ELSE 0 END) as acertos,
-                ROUND(SUM(CASE WHEN acertou THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as acerto
+                SUM(CASE WHEN ur.acertou THEN 1 ELSE 0 END) as acertos,
+                ROUND(SUM(CASE WHEN ur.acertou THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as acerto
             ")
-            ->groupByRaw('DATE(created_at)')
+            ->groupByRaw('DATE(ur.created_at)')
             ->orderBy('data')
             ->get();
 
@@ -151,13 +148,9 @@ class DashboardController extends Controller
     /**
      * Vulnerabilidades por matéria (maior taxa de erro, mínimo 5 respostas).
      */
-    private function calcularVulnerabilidades(int $userId): array
+    private function calcularVulnerabilidades(int $userId, ?int $concursoId): array
     {
-        return DB::table('user_responses as ur')
-            ->join('questoes as q', 'q.id', '=', 'ur.questao_id')
-            ->join('topicos as t', 't.id', '=', 'q.topico_id')
-            ->join('materias as m', 'm.id', '=', 't.materia_id')
-            ->where('ur.user_id', $userId)
+        return $this->respostasQuery($userId, $concursoId)
             ->selectRaw('
                 m.nome as materia,
                 COUNT(*) as total,
@@ -175,13 +168,9 @@ class DashboardController extends Controller
     /**
      * Vulnerabilidades detalhadas por tópico.
      */
-    private function calcularVulnerabilidadesTopicos(int $userId, int $limite): array
+    private function calcularVulnerabilidadesTopicos(int $userId, int $limite, ?int $concursoId): array
     {
-        return DB::table('user_responses as ur')
-            ->join('questoes as q', 'q.id', '=', 'ur.questao_id')
-            ->join('topicos as t', 't.id', '=', 'q.topico_id')
-            ->join('materias as m', 'm.id', '=', 't.materia_id')
-            ->where('ur.user_id', $userId)
+        return $this->respostasQuery($userId, $concursoId)
             ->selectRaw('
                 t.id as topico_id,
                 t.nome as topico,
@@ -224,12 +213,11 @@ class DashboardController extends Controller
     /**
      * Calcula a sequência de dias consecutivos com pelo menos 1 resposta.
      */
-    private function calcularSequenciaDias(int $userId): int
+    private function calcularSequenciaDias(int $userId, ?int $concursoId): int
     {
-        $diasComAtividade = DB::table('user_responses')
-            ->where('user_id', $userId)
-            ->selectRaw('DATE(created_at) as data')
-            ->groupByRaw('DATE(created_at)')
+        $diasComAtividade = $this->respostasQuery($userId, $concursoId)
+            ->selectRaw('DATE(ur.created_at) as data')
+            ->groupByRaw('DATE(ur.created_at)')
             ->orderByDesc('data')
             ->pluck('data')
             ->toArray();
@@ -250,5 +238,18 @@ class DashboardController extends Controller
         }
 
         return $sequencia;
+    }
+
+    /**
+     * Query-base das respostas do usuário dentro do concurso em foco.
+     */
+    private function respostasQuery(int $userId, ?int $concursoId): Builder
+    {
+        return DB::table('user_responses as ur')
+            ->join('questoes as q', 'q.id', '=', 'ur.questao_id')
+            ->join('topicos as t', 't.id', '=', 'q.topico_id')
+            ->join('materias as m', 'm.id', '=', 't.materia_id')
+            ->where('ur.user_id', $userId)
+            ->when($concursoId !== null, fn(Builder $query) => $query->where('m.concurso_id', $concursoId));
     }
 }

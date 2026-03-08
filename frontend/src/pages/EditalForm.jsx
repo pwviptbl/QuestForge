@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import Layout from '../components/Layout'
 import Spinner from '../components/Spinner'
 import { useToast } from '../components/Toast'
+import { useConcursoFocus } from '../contexts/ConcursoFocusContext'
 import api from '../api/client'
 
 export default function EditalForm() {
@@ -18,6 +19,7 @@ export default function EditalForm() {
 
     const navigate = useNavigate()
     const toast = useToast()
+    const { refreshConcursos } = useConcursoFocus()
 
     // Carrega dados ao editar
     useEffect(() => {
@@ -63,9 +65,11 @@ export default function EditalForm() {
         try {
             if (isEditing) {
                 await api.put(`/concursos/${id}`, form)
+                await refreshConcursos().catch(() => {})
                 toast.success('Concurso atualizado com sucesso!')
             } else {
                 const { data } = await api.post('/concursos', form)
+                await refreshConcursos().catch(() => {})
                 toast.success('Concurso criado com sucesso! 🎉')
                 navigate(`/concursos/${data.concurso.id}`)
                 return

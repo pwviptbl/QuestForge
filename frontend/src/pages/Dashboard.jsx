@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Layout from '../components/Layout'
 import Spinner from '../components/Spinner'
 import { useToast } from '../components/Toast'
+import { useConcursoFocus } from '../contexts/ConcursoFocusContext'
 import api from '../api/client'
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -16,8 +17,15 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true)
     const navigate = useNavigate()
     const toast = useToast()
+    const { focusedConcurso, focusedConcursoId } = useConcursoFocus()
+    const title = focusedConcurso
+        ? `Dashboard: ${focusedConcurso.nome}`
+        : focusedConcursoId !== null
+            ? 'Dashboard do Concurso em Foco'
+            : 'Dashboard de Desempenho'
 
     useEffect(() => {
+        setLoading(true)
         api.get('/dashboard/stats')
             .then(({ data }) => setStats(data))
             .catch(() => {
@@ -25,10 +33,10 @@ export default function Dashboard() {
                 setStats(mockStats)  // fallback para mock em caso de erro
             })
             .finally(() => setLoading(false))
-    }, [])
+    }, [focusedConcursoId])
 
     if (loading) return (
-        <Layout title="Dashboard">
+        <Layout title={title}>
             <div className="flex-center" style={{ padding: '5rem' }}><Spinner size="lg" /></div>
         </Layout>
     )
@@ -36,7 +44,32 @@ export default function Dashboard() {
     const { geral, por_materia: porMateria = [], evolucao = [], vulnerabilidades = [], srs = { pendentes: 0 }, pomodoro } = stats
 
     return (
-        <Layout title="Dashboard de Desempenho">
+        <Layout title={title}>
+            <div
+                className="card"
+                style={{
+                    marginBottom: '1.5rem',
+                    background: focusedConcurso ? 'rgba(99,102,241,0.08)' : 'var(--bg-glass)',
+                    border: focusedConcurso ? '1px solid rgba(99,102,241,0.25)' : '1px solid var(--border)',
+                }}
+            >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
+                            Escopo do dashboard
+                        </div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {focusedConcurso
+                                ? `Somente ${focusedConcurso.nome}`
+                                : focusedConcursoId !== null
+                                    ? 'Somente o concurso em foco atual'
+                                    : 'Todos os concursos'}
+                        </div>
+                    </div>
+                    {focusedConcursoId !== null && <span className="badge badge-indigo">🎯 Concurso em foco</span>}
+                </div>
+            </div>
+
             {/* ─── Stats gerais ────────────────────────────────── */}
             <div className="grid-4" style={{ marginBottom: '2rem' }}>
                 {[
@@ -173,8 +206,15 @@ export default function Dashboard() {
                     <div className="card" style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.875rem' }}>
                             <span style={{ fontSize: '1.2rem' }}>🍅</span>
-                            <h3 style={{ fontSize: '0.9rem', color: 'var(--text-accent)' }}>Pomodoro — 30 dias</h3>
+                            <h3 style={{ fontSize: '0.9rem', color: 'var(--text-accent)' }}>
+                                {focusedConcursoId !== null ? 'Pomodoro geral — 30 dias' : 'Pomodoro — 30 dias'}
+                            </h3>
                         </div>
+                        {focusedConcursoId !== null && (
+                            <p className="text-sm text-muted" style={{ marginBottom: '0.875rem' }}>
+                                Este card continua somando todas as suas sessões.
+                            </p>
+                        )}
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <div>
                                 <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: '1.6rem', color: 'var(--text-primary)' }}>

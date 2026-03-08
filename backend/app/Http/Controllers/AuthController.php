@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -109,6 +110,14 @@ class AuthController extends Controller
             'name' => ['sometimes', 'string', 'min:2', 'max:100'],
             'pomodoro_duracao' => ['sometimes', 'integer', 'in:15,25,30,45,50'],
             'meta_diaria_questoes' => ['sometimes', 'integer', 'min:5', 'max:100'],
+            'concurso_foco_id' => [
+                'sometimes',
+                'nullable',
+                'integer',
+                Rule::exists('concursos', 'id')->where(
+                    fn($query) => $query->where('user_id', $request->user()->id)
+                ),
+            ],
         ]);
 
         /** @var User $user */

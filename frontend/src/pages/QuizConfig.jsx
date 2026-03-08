@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import Layout from '../components/Layout'
 import Spinner from '../components/Spinner'
 import { useToast } from '../components/Toast'
+import { useConcursoFocus } from '../contexts/ConcursoFocusContext'
 import api from '../api/client'
 
 const QUANTIDADES = [5, 10, 15, 20, 30]
@@ -28,12 +29,16 @@ export default function QuizConfig() {
     const navigate = useNavigate()
     const toast = useToast()
     const [sp] = useSearchParams()
+    const {
+        concursos,
+        concursosLoading,
+        focusedConcurso,
+        focusedConcursoId,
+    } = useConcursoFocus()
 
-    const [concursos, setConcursos] = useState([])
     const [materias, setMaterias] = useState([])
     const [topicos, setTopicos] = useState([])
     const [loading, setLoading] = useState(false)
-    const [loadCon, setLoadCon] = useState(true)
 
     const [config, setConfig] = useState({
         modo: sp.get('modo') || (sp.get('topico_id') ? 'topico' : sp.get('materia_id') ? 'materia' : sp.get('concurso_id') ? 'concurso' : 'concurso'),
@@ -44,13 +49,6 @@ export default function QuizConfig() {
         dificuldade: 'adaptativa',
         tipo: 'multipla_escolha',
     })
-
-    // Carrega concursos
-    useEffect(() => {
-        api.get('/concursos')
-            .then(({ data }) => setConcursos(data.concursos))
-            .finally(() => setLoadCon(false))
-    }, [])
 
     // Carrega matérias ao trocar concurso
     useEffect(() => {
@@ -86,6 +84,18 @@ export default function QuizConfig() {
                 ...(config.modo === 'topico' && { topico_id: Number(config.topico_id) }),
             }
             const { data } = await api.post('/questoes/gerar', payload)
+
+            if (config.modo === 'revisao_srs' && data.questoes.length === 0) {
+                toast.warning(
+                    focusedConcurso
+                        ? `Não há revisões pendentes para ${focusedConcurso.nome}.`
+                        : focusedConcursoId !== null
+                            ? 'Não há revisões pendentes no concurso em foco atual.'
+                            : 'Não há revisões pendentes em nenhum concurso.'
+                )
+                return
+            }
+
             // Navega para o quiz passando as questões via state
             navigate('/quiz/play', { state: { questoes: data.questoes, config } })
         } catch (err) {
@@ -131,11 +141,30 @@ export default function QuizConfig() {
                     <OptionCard options={MODOS} field="modo" cols={2} />
                 </div>
 
+                {config.modo === 'revisao_srs' && (
+                    <div className="card" style={{
+                        background: focusedConcurso ? 'rgba(6,182,212,0.06)' : 'var(--bg-glass)',
+                        border: focusedConcurso ? '1px solid rgba(6,182,212,0.2)' : '1px solid var(--border)',
+                    }}>
+                        <h3 style={{ marginBottom: '0.75rem', color: 'var(--text-accent)' }}>🔄 Escopo da Revisão</h3>
+                        <p style={{ color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                            {focusedConcurso
+                                ? `As questões virão apenas do concurso em foco: ${focusedConcurso.nome}.`
+                                : focusedConcursoId !== null
+                                    ? 'As questões virão apenas do concurso em foco atual.'
+                                    : 'As questões virão de todos os concursos com revisão pendente.'}
+                        </p>
+                        <p className="text-sm text-muted">
+                            O concurso em foco é alterado pelo seletor global no topo da aplicação.
+                        </p>
+                    </div>
+                )}
+
                 {/* Escopo (concurso/matéria/tópico) */}
                 {config.modo !== 'revisao_srs' && (
                     <div className="card">
                         <h3 style={{ marginBottom: '1rem', color: 'var(--text-accent)' }}>📌 Contexto</h3>
-                        {loadCon ? <Spinner /> : (
+                        {concursosLoading ? <Spinner /> : (
                             <>
                                 {['concurso', 'materia', 'topico'].includes(config.modo) && (
                                     <div className="form-group">

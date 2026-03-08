@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -27,6 +28,7 @@ class User extends Authenticatable
         'is_admin',
         'is_blocked',
         'plano',
+        'concurso_foco_id',
     ];
 
     /**
@@ -54,6 +56,7 @@ class User extends Authenticatable
             'is_admin' => 'boolean',
             'is_blocked' => 'boolean',
             'plano' => 'string',
+            'concurso_foco_id' => 'integer',
         ];
     }
 
@@ -63,6 +66,12 @@ class User extends Authenticatable
     public function concursos()
     {
         return $this->hasMany(Concurso::class);
+    }
+
+    /** O usuário pode definir um concurso em foco global */
+    public function concursoFoco(): BelongsTo
+    {
+        return $this->belongsTo(Concurso::class, 'concurso_foco_id');
     }
 
     /** Um usuário possui muitas respostas registradas */
