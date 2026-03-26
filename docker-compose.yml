@@ -43,6 +43,7 @@ services:
     volumes:
       - ./backend:/var/www/html  # Para servir assets do Laravel
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./logs/nginx:/var/log/nginx
     networks:
       - questforge_net
     depends_on:
