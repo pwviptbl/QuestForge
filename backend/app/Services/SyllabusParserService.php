@@ -36,6 +36,7 @@ class SyllabusParserService
             $concurso = Concurso::create([
                 'user_id' => $userId,
                 'nome' => $dados['nome'],
+                'banca' => $dados['banca'] ?? null,
                 'descricao' => $dados['descricao'] ?? null,
                 'data_prova' => $dados['data_prova'] ?? null,
                 'sintaxe_original' => $dados['sintaxe_original'],

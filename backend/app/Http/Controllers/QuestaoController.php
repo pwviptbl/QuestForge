@@ -10,6 +10,9 @@ use App\Models\Topico;
 use App\Models\UserResponse;
 use App\Services\GeminiService;
 use App\Services\SrsService;
+use App\Jobs\GerarQuestoesJob;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -33,21 +36,59 @@ class QuestaoController extends Controller
         $quantidade = $request->quantidade;
         $tipo = $request->tipo;
         $dificuldade = $request->dificuldade;
+        $banca = $request->banca;
 
-        // ── Resolve o contexto com base no modo ──────────────────
-        $questoesGeradas = match ($modo) {
-            'topico' => $this->gerarPorTopico($request, $quantidade, $tipo, $dificuldade),
-            'materia' => $this->gerarPorMateria($request, $quantidade, $tipo, $dificuldade),
-            'concurso' => $this->gerarPorConcurso($request, $quantidade, $tipo, $dificuldade),
-            'revisao_srs' => $this->gerarRevisaoSrs($request, $quantidade),
-            default => throw new \InvalidArgumentException("Modo '{$modo}' inválido."),
+        if ($modo === 'revisao_srs') {
+            $questoesGeradas = $this->gerarRevisaoSrs($request, $quantidade);
+            return response()->json([
+                'message' => "Bateria de {$quantidade} questões de revisão carregada com sucesso.",
+                'questoes' => $questoesGeradas,
+                'total' => count($questoesGeradas),
+            ], 201);
+        }
+
+        $contextoId = match ($modo) {
+            'topico' => $request->topico_id,
+            'materia' => $request->materia_id,
+            'concurso' => $request->concurso_id,
         };
 
+        $taskId = (string) Str::uuid();
+
+        Cache::put("task_{$taskId}", ['status' => 'pending'], 600);
+
+        GerarQuestoesJob::dispatch(
+            $request->user()->id,
+            $modo,
+            $quantidade,
+            $tipo,
+            $dificuldade,
+            $contextoId,
+            $banca,
+            $taskId
+        );
+
         return response()->json([
-            'message' => "Bateria de {$quantidade} questões gerada com sucesso.",
-            'questoes' => $questoesGeradas,
-            'total' => count($questoesGeradas),
-        ], 201);
+            'status' => 'queued',
+            'task_id' => $taskId,
+        ], 202);
+    }
+
+    /**
+     * Verifica o status da geração em segundo plano.
+     */
+    public function checkTaskStatus(Request $request, string $id): JsonResponse
+    {
+        $task = Cache::get("task_{$id}");
+
+        if (!$task) {
+            return response()->json([
+                'status' => 'failed',
+                'error' => 'Tarefa expirada ou não encontrada.'
+            ], 404);
+        }
+
+        return response()->json($task);
     }
 
     /**

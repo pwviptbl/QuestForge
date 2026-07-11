@@ -39,10 +39,43 @@ class GeminiService
         string $topico,
         int $quantidade,
         string $tipo,
-        string $dificuldade
+        string $dificuldade,
+        ?string $banca = null
     ): array {
-        $prompt = $this->montarPromptGeracao($materia, $topico, $quantidade, $tipo, $dificuldade);
-        $config = config('gemini.generation_config');
+        $prompt = $this->montarPromptGeracao($materia, $topico, $quantidade, $tipo, $dificuldade, $banca);
+        $config = array_merge(config('gemini.generation_config'), [
+            'responseMimeType' => 'application/json',
+            'responseSchema' => [
+                'type' => 'OBJECT',
+                'properties' => [
+                    'questoes' => [
+                        'type' => 'ARRAY',
+                        'items' => [
+                            'type' => 'OBJECT',
+                            'properties' => [
+                                'enunciado' => ['type' => 'STRING'],
+                                'tipo' => ['type' => 'STRING', 'enum' => ['multipla_escolha', 'certo_errado']],
+                                'dificuldade' => ['type' => 'STRING', 'enum' => ['facil', 'medio', 'dificil']],
+                                'resposta_correta' => ['type' => 'STRING'],
+                                'alternativas' => [
+                                    'type' => 'ARRAY',
+                                    'items' => [
+                                        'type' => 'OBJECT',
+                                        'properties' => [
+                                            'letra' => ['type' => 'STRING'],
+                                            'texto' => ['type' => 'STRING']
+                                        ],
+                                        'required' => ['letra', 'texto']
+                                    ]
+                                ]
+                            ],
+                            'required' => ['enunciado', 'tipo', 'dificuldade', 'resposta_correta']
+                        ]
+                    ]
+                ],
+                'required' => ['questoes']
+            ]
+        ]);
         $texto = $this->chamarApi($prompt, $config);
         $data = $this->extrairJson($texto);
 
@@ -64,11 +97,46 @@ class GeminiService
         array $topicos,
         int $quantidade,
         string $dificuldade,
-        string $tipo
+        string $tipo,
+        ?string $banca = null
     ): array
     {
-        $prompt = $this->montarPromptSimuladoMesclado($topicos, $quantidade, $dificuldade, $tipo);
-        $config = config('gemini.generation_config');
+        $prompt = $this->montarPromptSimuladoMesclado($topicos, $quantidade, $dificuldade, $tipo, $banca);
+        $config = array_merge(config('gemini.generation_config'), [
+            'responseMimeType' => 'application/json',
+            'responseSchema' => [
+                'type' => 'OBJECT',
+                'properties' => [
+                    'questoes' => [
+                        'type' => 'ARRAY',
+                        'items' => [
+                            'type' => 'OBJECT',
+                            'properties' => [
+                                'topico' => ['type' => 'STRING'],
+                                'materia' => ['type' => 'STRING'],
+                                'enunciado' => ['type' => 'STRING'],
+                                'tipo' => ['type' => 'STRING', 'enum' => ['multipla_escolha', 'certo_errado']],
+                                'dificuldade' => ['type' => 'STRING', 'enum' => ['facil', 'medio', 'dificil']],
+                                'resposta_correta' => ['type' => 'STRING'],
+                                'alternativas' => [
+                                    'type' => 'ARRAY',
+                                    'items' => [
+                                        'type' => 'OBJECT',
+                                        'properties' => [
+                                            'letra' => ['type' => 'STRING'],
+                                            'texto' => ['type' => 'STRING']
+                                        ],
+                                        'required' => ['letra', 'texto']
+                                    ]
+                                ]
+                            ],
+                            'required' => ['topico', 'materia', 'enunciado', 'tipo', 'dificuldade', 'resposta_correta']
+                        ]
+                    ]
+                ],
+                'required' => ['questoes']
+            ]
+        ]);
         $texto = $this->chamarApi($prompt, $config);
         $data = $this->extrairJson($texto);
 
@@ -108,7 +176,8 @@ class GeminiService
         string $topico,
         int $quantidade,
         string $tipo,
-        string $dificuldade
+        string $dificuldade,
+        ?string $banca = null
     ): string {
         $tipoDescricao = match ($tipo) {
             'multipla_escolha' => 'múltipla escolha com exatamente 5 alternativas (A, B, C, D, E)',
@@ -129,13 +198,17 @@ class GeminiService
             default => 'médio'
         };
 
+        $bancaFoco = $banca
+            ? "Você deve agir EXATAMENTE como a banca examinadora '{$banca}', imitando perfeitamente o seu estilo de cobrança, nível de complexidade, jargões e estrutura de alternativas/distratores."
+            : "As questões devem ser no estilo de bancas tradicionais brasileiras como CESPE, FCC, VUNESP e FGV.";
+
         return <<<PROMPT
 Você é um gerador de questões de concurso público brasileiro. Sua ÚNICA função é gerar questões no formato JSON estruturado. Siga estas regras OBRIGATORIAMENTE:
 
 1. Gere EXATAMENTE {$quantidade} questões sobre o tópico "{$topico}" da matéria "{$materia}".
 2. Dificuldade: {$difDescricao}.
 3. Tipo: {$tipoDescricao}.
-4. As questões devem ser no estilo de bancas como CESPE, FCC, VUNESP e FGV.
+4. {$bancaFoco}
 5. Cada questão deve ter um enunciado claro, direto e sem ambiguidades.
 6. Para múltipla escolha: exatamente UMA alternativa correta e 4 distratores plausíveis.
 7. {$regraTipo}
@@ -169,7 +242,8 @@ PROMPT;
         array $topicos,
         int $quantidade,
         string $dificuldade,
-        string $tipo
+        string $tipo,
+        ?string $banca = null
     ): string {
         // Formata lista de tópicos para o prompt
         $listaTopicos = collect($topicos)
@@ -186,6 +260,10 @@ PROMPT;
             default => 'Mix de tipos: prefira múltipla escolha (5 alternativas A-E), com até 30% sendo certo/errado.',
         };
 
+        $bancaFoco = $banca
+            ? "Você deve agir EXATAMENTE como a banca examinadora '{$banca}', imitando perfeitamente o seu estilo de cobrança, nível de complexidade, jargões e estrutura de alternativas/distratores."
+            : "Use estilo de bancas como CESPE, FCC, VUNESP e FGV.";
+
         return <<<PROMPT
 Você é um gerador de questões de concurso público brasileiro. Gere um simulado MESCLADO.
 
@@ -196,7 +274,7 @@ REGRAS:
 1. Gere EXATAMENTE {$quantidade} questões distribuídas entre os tópicos listados.
 2. {$distribuicaoDif}
 3. A ordem das questões deve ser ALEATÓRIA (não agrupe por tópico).
-4. Use estilo de bancas como CESPE, FCC, VUNESP e FGV.
+4. {$bancaFoco}
 5. {$regraTipo}
 
 RETORNE EXCLUSIVAMENTE um JSON válido (sem markdown, sem texto adicional):
@@ -449,8 +527,9 @@ PROMPT;
         string $materia,
         string $topico,
         string $tipo,
-        string $dificuldade
+        string $dificuldade,
+        ?string $banca = null
     ): string {
-        return hash('sha256', implode('|', [$materia, $topico, $tipo, $dificuldade]));
+        return hash('sha256', implode('|', [$materia, $topico, $tipo, $dificuldade, $banca ?? '']));
     }
 }

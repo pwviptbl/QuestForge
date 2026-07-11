@@ -36,6 +36,7 @@ class GerarQuestoesRequest extends FormRequest
             // Configuração da questão
             'dificuldade' => ['required', 'string', 'in:facil,medio,dificil,adaptativa'],
             'tipo' => ['required', 'string', 'in:multipla_escolha,certo_errado,misto'],
+            'banca' => ['nullable', 'string', 'max:100'],
         ];
     }
 

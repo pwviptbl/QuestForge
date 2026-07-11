@@ -20,6 +20,7 @@ class Concurso extends Model
     protected $fillable = [
         'user_id',
         'nome',
+        'banca',
         'descricao',
         'data_prova',
         'sintaxe_original',

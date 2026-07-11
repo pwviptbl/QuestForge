@@ -31,6 +31,7 @@ RUN docker-php-ext-install \
 
 # ─── Instalação do Redis para PHP ────────────────────────────
 RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
+    && pecl channel-update pecl.php.net \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && apk del .build-deps

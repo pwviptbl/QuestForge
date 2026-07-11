@@ -10,7 +10,7 @@ export default function EditalForm() {
     const { id } = useParams()     // presente quando editando
     const isEditing = !!id
 
-    const [form, setForm] = useState({ nome: '', descricao: '', data_prova: '', sintaxe_original: '' })
+    const [form, setForm] = useState({ nome: '', banca: '', descricao: '', data_prova: '', sintaxe_original: '' })
     const [preview, setPreview] = useState(null)
     const [previewLoad, setPreviewLoad] = useState(false)
     const [loading, setLoading] = useState(false)
@@ -27,7 +27,7 @@ export default function EditalForm() {
         api.get(`/concursos/${id}`)
             .then(({ data }) => {
                 const c = data.concurso
-                setForm({ nome: c.nome, descricao: c.descricao || '', data_prova: c.data_prova || '', sintaxe_original: c.sintaxe_original })
+                setForm({ nome: c.nome, banca: c.banca || '', descricao: c.descricao || '', data_prova: c.data_prova || '', sintaxe_original: c.sintaxe_original })
             })
             .catch(() => toast.error('Erro ao carregar concurso.'))
             .finally(() => setLoadingData(false))
@@ -112,6 +112,18 @@ export default function EditalForm() {
                                 required
                             />
                             {errors.nome && <span className="form-error">⚠ {errors.nome[0]}</span>}
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">Banca Examinadora (opcional)</label>
+                            <input
+                                id="concurso-banca"
+                                type="text"
+                                className="form-input"
+                                placeholder="Ex: FGV, CESPE, FCC, VUNESP..."
+                                value={form.banca}
+                                onChange={set('banca')}
+                            />
                         </div>
 
                         <div className="grid-2">

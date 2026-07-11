@@ -97,6 +97,7 @@ class ConcursoController extends Controller
         // Atualiza metadados simples
         $concurso->update([
             'nome' => $request->nome,
+            'banca' => $request->banca,
             'descricao' => $request->descricao,
             'data_prova' => $request->data_prova,
         ]);

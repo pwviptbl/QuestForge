@@ -48,13 +48,19 @@ export default function QuizConfig() {
         quantidade: 10,
         dificuldade: 'adaptativa',
         tipo: 'multipla_escolha',
+        banca: '',
     })
 
     // Carrega matérias ao trocar concurso
     useEffect(() => {
         if (!config.concurso_id) { setMaterias([]); setTopicos([]); return }
         api.get(`/concursos/${config.concurso_id}`)
-            .then(({ data }) => setMaterias(data.concurso.materias))
+            .then(({ data }) => {
+                setMaterias(data.concurso.materias)
+                if (data.concurso.banca) {
+                    setConfig(p => ({ ...p, banca: data.concurso.banca }))
+                }
+            })
     }, [config.concurso_id])
 
     // Carrega tópicos ao trocar matéria
@@ -85,7 +91,23 @@ export default function QuizConfig() {
             }
             const { data } = await api.post('/questoes/gerar', payload)
 
-            if (config.modo === 'revisao_srs' && data.questoes.length === 0) {
+            let result = data
+            if (data.status === 'queued') {
+                let completed = false
+                const taskId = data.task_id
+                while (!completed) {
+                    await new Promise(resolve => setTimeout(resolve, 2000))
+                    const pollRes = await api.get(`/questoes/task/${taskId}`)
+                    if (pollRes.data.status === 'completed') {
+                        result = pollRes.data
+                        completed = true
+                    } else if (pollRes.data.status === 'failed') {
+                        throw new Error(pollRes.data.error || 'Erro na geração de questões pela IA.')
+                    }
+                }
+            }
+
+            if (config.modo === 'revisao_srs' && result.questoes.length === 0) {
                 toast.warning(
                     focusedConcurso
                         ? `Não há revisões pendentes para ${focusedConcurso.nome}.`
@@ -97,7 +119,7 @@ export default function QuizConfig() {
             }
 
             // Navega para o quiz passando as questões via state
-            navigate('/quiz/play', { state: { questoes: data.questoes, config } })
+            navigate('/quiz/play', { state: { questoes: result.questoes, config } })
         } catch (err) {
             if (err.response?.status === 422) {
                 toast.error(Object.values(err.response.data.errors || {}).flat()[0] || 'Configuração inválida.')
@@ -222,6 +244,23 @@ export default function QuizConfig() {
                 {/* Dificuldade + Tipo */}
                 <div className="card">
                     <h3 style={{ marginBottom: '1rem', color: 'var(--text-accent)' }}>⚙️ Configuração</h3>
+
+                    {config.modo !== 'revisao_srs' && (
+                        <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                            <label className="form-label">Banca Examinadora (opcional)</label>
+                            <input
+                                type="text"
+                                className="form-input"
+                                placeholder="Ex: FGV, CESPE, FCC, VUNESP..."
+                                value={config.banca}
+                                onChange={e => set('banca', e.target.value)}
+                            />
+                            <span className="text-sm text-muted" style={{ display: 'block', marginTop: '0.25rem' }}>
+                                A IA gerará questões simulando o estilo de escrita da banca informada.
+                            </span>
+                        </div>
+                    )}
+
                     <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Dificuldade</label>
                     <OptionCard options={DIFICULDADES} field="dificuldade" cols={2} />
                     <label className="form-label" style={{ margin: '1rem 0 0.5rem', display: 'block' }}>Tipo de Questão</label>

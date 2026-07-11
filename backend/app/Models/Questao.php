@@ -23,6 +23,7 @@ class Questao extends Model
         'topico_id',
         'enunciado',
         'tipo',
+        'banca',
         'dificuldade',
         'resposta_correta',
         'explicacao',

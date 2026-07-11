@@ -24,6 +24,7 @@ class ConcursoRequest extends FormRequest
         return [
             'nome' => ['required', 'string', 'min:3', 'max:200'],
             'sintaxe_original' => ['required', 'string'],
+            'banca' => ['nullable', 'string', 'max:100'],
             'descricao' => ['nullable', 'string', 'max:1000'],
             'data_prova' => ['nullable', 'date', 'after_or_equal:today'],
         ];

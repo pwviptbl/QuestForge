@@ -52,6 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── Fase 3: Questões e Respostas ─────────────────────
     Route::post('questoes/gerar', [QuestaoController::class, 'gerar'])->middleware('throttle:15,1'); // Previne overload da API Gemini/Gastos
+    Route::get('questoes/task/{id}', [QuestaoController::class, 'checkTaskStatus']);
     Route::post('respostas', [QuestaoController::class, 'registrarResposta']);
     Route::post('questoes/{id}/explicacao', [QuestaoController::class, 'gerarExplicacao']);
 
