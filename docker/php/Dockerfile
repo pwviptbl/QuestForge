@@ -5,6 +5,7 @@ RUN apk add --no-cache \
     bash \
     git \
     curl \
+    poppler-utils \
     zip \
     unzip \
     libpng-dev \

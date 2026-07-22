@@ -50,6 +50,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('materias/{id}', [ConcursoController::class, 'destroyMateria']);
     Route::post('materias/{id}/topicos', [ConcursoController::class, 'addTopico']);
     Route::delete('topicos/{id}', [ConcursoController::class, 'destroyTopico']);
+    Route::post('concursos/{id}/referencias-banca', [ConcursoController::class, 'addBancaReference'])->middleware('throttle:5,10');
+    Route::delete('concursos/{id}/referencias-banca/{profileId}', [ConcursoController::class, 'destroyBancaReference']);
 
     // ── Fase 3: Questões e Respostas ─────────────────────
     Route::post('questoes/gerar', [QuestaoController::class, 'gerar'])->middleware('throttle:15,1'); // Previne overload da API Gemini/Gastos

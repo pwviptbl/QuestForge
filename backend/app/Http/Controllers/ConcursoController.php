@@ -7,13 +7,15 @@ use App\Models\Concurso;
 use App\Models\Materia;
 use App\Models\Topico;
 use App\Services\SyllabusParserService;
+use App\Services\BancaReferenceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ConcursoController extends Controller
 {
     public function __construct(
-        private readonly SyllabusParserService $parser
+        private readonly SyllabusParserService $parser,
+        private readonly BancaReferenceService $bancaReferences,
     ) {
     }
 
@@ -79,6 +81,7 @@ class ConcursoController extends Controller
         $concurso = $request->user()
             ->concursos()
             ->with('materias.topicos')
+            ->with('bancaReferenceProfiles')
             ->findOrFail($id);
 
         return response()->json(['concurso' => $concurso]);
@@ -128,6 +131,31 @@ class ConcursoController extends Controller
         return response()->json([
             'message' => 'Concurso excluído com sucesso.',
         ]);
+    }
+
+    /** Processa um PDF temporariamente e guarda apenas o perfil de estilo extraído. */
+    public function addBancaReference(Request $request, int $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'arquivo' => ['required', 'file', 'mimetypes:application/pdf', 'max:51200'],
+            'source_url' => ['nullable', 'url', 'max:2048'],
+        ]);
+
+        $concurso = $request->user()->concursos()->findOrFail($id);
+        $profile = $this->bancaReferences->analisar($concurso, $validated['arquivo'], $validated['source_url'] ?? null);
+
+        return response()->json([
+            'message' => 'Referência analisada. O PDF e o texto extraído não foram armazenados.',
+            'profile' => $profile,
+        ], 201);
+    }
+
+    public function destroyBancaReference(Request $request, int $id, int $profileId): JsonResponse
+    {
+        $concurso = $request->user()->concursos()->findOrFail($id);
+        $concurso->bancaReferenceProfiles()->findOrFail($profileId)->delete();
+
+        return response()->json(['message' => 'Referência removida.']);
     }
 
     /**
