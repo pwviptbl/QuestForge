@@ -22,6 +22,28 @@ services:
         condition: service_healthy
     # Não expõe portas - acesso apenas via nginx
 
+  # ─── Worker da fila Laravel ─────────────────────────────
+  worker:
+    build:
+      context: ./backend
+      dockerfile: ../docker/php/Dockerfile
+    container_name: questforge_worker
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: php artisan queue:work --queue=default --sleep=2 --tries=3 --timeout=300
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/var/www/html
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - questforge_net
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   # ─── Frontend React (Produção - Build Estático) ──────────
   frontend:
     build:
@@ -48,6 +70,7 @@ services:
       - questforge_net
     depends_on:
       - app
+      - worker
       - frontend
 
   # ─── PostgreSQL (Banco de Dados) ─────────────────────────
@@ -63,20 +86,10 @@ services:
       - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - questforge_pgdata:/var/lib/postgresql/data
-      - ./logs/postgres:/var/log/postgresql
-    command: >
-      postgres
-      -c logging_collector=on
-      -c log_destination=stderr
-      -c log_directory=/var/log/postgresql
-      -c log_filename=postgresql.log
-      -c log_truncate_on_rotation=on
-      -c log_rotation_age=1d
-      -c log_rotation_size=100MB
     networks:
       - questforge_net
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USERNAME:-questforge}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USERNAME:-questforge} -d ${DB_DATABASE:-questforge}" ]
       interval: 10s
       timeout: 5s
       retries: 5
