@@ -26,13 +26,23 @@ export default function QuizPlay() {
     const [resultados, setResultados] = useState([])        // histórico da sessão
     const [finalizado, setFinalizado] = useState(false)
     const [saving, setSaving] = useState(false)
+    const [audioCarregando, setAudioCarregando] = useState(null)
+    const [audioTocando, setAudioTocando] = useState(null)
     const inicioRef = useRef(Date.now())                      // timestamp de início da questão
+    const audioRef = useRef(null)
 
     // Redireciona se não há questões (acesso direto à URL)
     useEffect(() => {
         if (questoes.length === 0) {
             toast.warning('Nenhuma questão disponível. Configure a bateria primeiro.')
             navigate('/quiz/config')
+        }
+    }, [])
+
+    useEffect(() => () => {
+        if (audioRef.current) {
+            audioRef.current.pause()
+            URL.revokeObjectURL(audioRef.current.src)
         }
     }, [])
 
@@ -89,12 +99,56 @@ export default function QuizPlay() {
             return
         }
         setIdx(prev => prev + 1)
+        pararAudio()
         setSelecionada(null)
         setEliminadas([])
         setConfirmada(false)
         setExplicacao(null)
         setResponseId(null)
         inicioRef.current = Date.now()
+    }
+
+    const pararAudio = () => {
+        if (audioRef.current) {
+            audioRef.current.pause()
+            URL.revokeObjectURL(audioRef.current.src)
+            audioRef.current = null
+        }
+        setAudioTocando(null)
+    }
+
+    const ouvir = async (texto, chave) => {
+        if (audioTocando === chave) {
+            pararAudio()
+            return
+        }
+
+        pararAudio()
+        setAudioCarregando(chave)
+
+        try {
+            const { data } = await api.post('/tts', { text: texto }, { responseType: 'blob' })
+            const url = URL.createObjectURL(data)
+            const audio = new Audio(url)
+            audioRef.current = audio
+            audio.onended = () => {
+                URL.revokeObjectURL(url)
+                if (audioRef.current === audio) audioRef.current = null
+                setAudioTocando(null)
+            }
+            audio.onerror = () => {
+                URL.revokeObjectURL(url)
+                if (audioRef.current === audio) audioRef.current = null
+                setAudioTocando(null)
+                toast.error('Não foi possível reproduzir o áudio.')
+            }
+            await audio.play()
+            setAudioTocando(chave)
+        } catch {
+            toast.error('Não foi possível gerar o áudio agora.')
+        } finally {
+            setAudioCarregando(null)
+        }
     }
 
     // Primeiro clique seleciona. Ao clicar novamente na alternativa selecionada,
@@ -244,6 +298,14 @@ export default function QuizPlay() {
                 <div style={{ width: '100%', maxWidth: 720 }} className="animate-fade-in">
                     {/* Enunciado */}
                     <div className="card" style={{ marginBottom: '1.25rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+                            <BotaoAudio
+                                onClick={() => ouvir(questao.enunciado, 'enunciado')}
+                                carregando={audioCarregando === 'enunciado'}
+                                tocando={audioTocando === 'enunciado'}
+                                label="Ouvir enunciado"
+                            />
+                        </div>
                         <p style={{
                             fontSize: '1.05rem',
                             lineHeight: 1.8,
@@ -273,6 +335,9 @@ export default function QuizPlay() {
                                     correta={questao.resposta_correta}
                                     onClick={() => escolherAlternativa(opt)}
                                     isOpt={opt}
+                                    onOuvir={() => ouvir(opt, `alternativa-${opt}`)}
+                                    audioCarregando={audioCarregando === `alternativa-${opt}`}
+                                    audioTocando={audioTocando === `alternativa-${opt}`}
                                 />
                             ))
                         ) : (
@@ -287,6 +352,9 @@ export default function QuizPlay() {
                                     correta={questao.resposta_correta}
                                     onClick={() => escolherAlternativa(alt.letra)}
                                     isOpt={alt.letra}
+                                    onOuvir={() => ouvir(`Alternativa ${alt.letra}. ${alt.texto}`, `alternativa-${alt.letra}`)}
+                                    audioCarregando={audioCarregando === `alternativa-${alt.letra}`}
+                                    audioTocando={audioTocando === `alternativa-${alt.letra}`}
                                 />
                             ))
                         )}
@@ -342,6 +410,12 @@ export default function QuizPlay() {
                                 <span style={{ fontWeight: 700, color: 'var(--cyan)', fontSize: '0.9rem' }}>
                                     Explicação da IA
                                 </span>
+                                <BotaoAudio
+                                    onClick={() => ouvir(explicacao, 'explicacao')}
+                                    carregando={audioCarregando === 'explicacao'}
+                                    tocando={audioTocando === 'explicacao'}
+                                    label="Ouvir explicação"
+                                />
                             </div>
                             <p style={{ color: 'var(--text-secondary)', lineHeight: 1.8, fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>
                                 {explicacao}
@@ -355,7 +429,7 @@ export default function QuizPlay() {
 }
 
 /* ─── Componente de alternativa ─────────────────────────────── */
-function AlternativaBtn({ letra, texto, selecionada, eliminada, confirmada, correta, onClick, isOpt }) {
+function AlternativaBtn({ letra, texto, selecionada, eliminada, confirmada, correta, onClick, isOpt, onOuvir, audioCarregando, audioTocando }) {
     const isSel = selecionada === isOpt
     const isCorr = correta === isOpt
 
@@ -377,31 +451,62 @@ function AlternativaBtn({ letra, texto, selecionada, eliminada, confirmada, corr
     }
 
     return (
-        <button
-            onClick={onClick}
-            disabled={confirmada}
-            style={{
+        <div style={{ position: 'relative' }}>
+            <button
+                onClick={onClick}
+                disabled={confirmada}
+                style={{
                 display: 'flex', alignItems: 'flex-start', gap: '0.875rem',
-                padding: '0.875rem 1rem', borderRadius: 'var(--radius-md)',
+                padding: !confirmada ? '0.875rem 3.5rem 0.875rem 1rem' : '0.875rem 1rem', borderRadius: 'var(--radius-md)',
                 background: bg, border: `1px solid ${border}`, cursor: confirmada ? 'default' : 'pointer',
                 transition: 'all 0.2s', textAlign: 'left', width: '100%',
                 opacity: !confirmada && eliminada ? 0.7 : 1,
+                }}
+            >
+                <span style={{
+                    minWidth: 28, height: 28, borderRadius: '50%',
+                    background: confirmada && isCorr ? 'var(--success)' : 'var(--bg-secondary)',
+                    border: `2px solid ${border}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 800, fontSize: '0.8rem', color: confirmada && isCorr ? '#fff' : color,
+                    flexShrink: 0,
+                }}>
+                    {confirmada && isCorr ? '✓' : letra}
+                </span>
+                <span style={{
+                    color, fontSize: '0.9rem', lineHeight: 1.6, flex: 1,
+                    textDecoration: !confirmada && eliminada ? 'line-through' : 'none',
+                }}>{texto}</span>
+            </button>
+            {!confirmada && (
+                <div style={{ position: 'absolute', right: '0.875rem', top: '50%', transform: 'translateY(-50%)' }}>
+                    <BotaoAudio
+                        onClick={onOuvir}
+                        carregando={audioCarregando}
+                        tocando={audioTocando}
+                        label={`Ouvir alternativa ${letra}`}
+                    />
+                </div>
+            )}
+        </div>
+    )
+}
+
+function BotaoAudio({ onClick, carregando, tocando, label }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={carregando}
+            aria-label={label}
+            title={label}
+            style={{
+                border: '1px solid var(--border)', borderRadius: '50%', width: 30, height: 30,
+                background: tocando ? 'rgba(99,102,241,0.18)' : 'var(--bg-secondary)',
+                color: 'var(--text-secondary)', cursor: carregando ? 'wait' : 'pointer', flexShrink: 0,
             }}
         >
-            <span style={{
-                minWidth: 28, height: 28, borderRadius: '50%',
-                background: confirmada && isCorr ? 'var(--success)' : 'var(--bg-secondary)',
-                border: `2px solid ${border}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 800, fontSize: '0.8rem', color: confirmada && isCorr ? '#fff' : color,
-                flexShrink: 0,
-            }}>
-                {confirmada && isCorr ? '✓' : letra}
-            </span>
-            <span style={{
-                color, fontSize: '0.9rem', lineHeight: 1.6, flex: 1,
-                textDecoration: !confirmada && eliminada ? 'line-through' : 'none',
-            }}>{texto}</span>
+            {carregando ? '…' : tocando ? '⏹' : '🔊'}
         </button>
     )
 }

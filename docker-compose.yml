@@ -44,6 +44,22 @@ services:
       redis:
         condition: service_healthy
 
+  # ─── Texto para fala (Microsoft Edge TTS) ─────────────────
+  tts:
+    build:
+      context: ./tts
+    container_name: questforge_tts
+    restart: unless-stopped
+    volumes:
+      - questforge_tts_cache:/app/cache
+    networks:
+      - questforge_net
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   # ─── Frontend React (Produção - Build Estático) ──────────
   frontend:
     build:
@@ -116,6 +132,8 @@ volumes:
   questforge_pgdata:
     driver: local
   questforge_redis_data:
+    driver: local
+  questforge_tts_cache:
     driver: local
 
 # ─── Rede interna do projeto ─────────────────────────────────
