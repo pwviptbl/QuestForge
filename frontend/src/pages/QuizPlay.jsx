@@ -18,6 +18,7 @@ export default function QuizPlay() {
 
     const [idx, setIdx] = useState(0)         // questão atual
     const [selecionada, setSelecionada] = useState(null)      // resposta escolhida
+    const [eliminadas, setEliminadas] = useState([])           // alternativas descartadas durante a resolução
     const [confirmada, setConfirmada] = useState(false)     // respondeu?
     const [explicacao, setExplicacao] = useState(null)      // texto da explicação
     const [loadExpl, setLoadExpl] = useState(false)     // carregando explicação
@@ -89,10 +90,30 @@ export default function QuizPlay() {
         }
         setIdx(prev => prev + 1)
         setSelecionada(null)
+        setEliminadas([])
         setConfirmada(false)
         setExplicacao(null)
         setResponseId(null)
         inicioRef.current = Date.now()
+    }
+
+    // Primeiro clique seleciona. Ao clicar novamente na alternativa selecionada,
+    // ela é descartada; um novo clique apenas restaura a alternativa.
+    const escolherAlternativa = (opcao) => {
+        if (confirmada) return
+
+        if (selecionada === opcao) {
+            setSelecionada(null)
+            setEliminadas(prev => prev.includes(opcao) ? prev : [...prev, opcao])
+            return
+        }
+
+        if (eliminadas.includes(opcao)) {
+            setEliminadas(prev => prev.filter(item => item !== opcao))
+            return
+        }
+
+        setSelecionada(opcao)
     }
 
     // ─── Tela de resultados ──────────────────────────────────────
@@ -235,6 +256,11 @@ export default function QuizPlay() {
 
                     {/* Alternativas */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', marginBottom: '1.5rem' }}>
+                        {!confirmada && (
+                            <p style={{ margin: '0 0 0.15rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                                Clique para selecionar. Clique novamente na selecionada para eliminá-la.
+                            </p>
+                        )}
                         {questao.tipo === 'certo_errado' ? (
                             ['CERTO', 'ERRADO'].map(opt => (
                                 <AlternativaBtn
@@ -242,9 +268,10 @@ export default function QuizPlay() {
                                     letra={opt === 'CERTO' ? '✅' : '❌'}
                                     texto={opt}
                                     selecionada={selecionada}
+                                    eliminada={eliminadas.includes(opt)}
                                     confirmada={confirmada}
                                     correta={questao.resposta_correta}
-                                    onClick={() => !confirmada && setSelecionada(opt)}
+                                    onClick={() => escolherAlternativa(opt)}
                                     isOpt={opt}
                                 />
                             ))
@@ -255,9 +282,10 @@ export default function QuizPlay() {
                                     letra={alt.letra}
                                     texto={alt.texto}
                                     selecionada={selecionada}
+                                    eliminada={eliminadas.includes(alt.letra)}
                                     confirmada={confirmada}
                                     correta={questao.resposta_correta}
-                                    onClick={() => !confirmada && setSelecionada(alt.letra)}
+                                    onClick={() => escolherAlternativa(alt.letra)}
                                     isOpt={alt.letra}
                                 />
                             ))
@@ -327,7 +355,7 @@ export default function QuizPlay() {
 }
 
 /* ─── Componente de alternativa ─────────────────────────────── */
-function AlternativaBtn({ letra, texto, selecionada, confirmada, correta, onClick, isOpt }) {
+function AlternativaBtn({ letra, texto, selecionada, eliminada, confirmada, correta, onClick, isOpt }) {
     const isSel = selecionada === isOpt
     const isCorr = correta === isOpt
 
@@ -337,6 +365,9 @@ function AlternativaBtn({ letra, texto, selecionada, confirmada, correta, onClic
 
     if (!confirmada && isSel) {
         bg = 'rgba(99,102,241,0.1)'; border = 'rgba(99,102,241,0.4)'; color = 'var(--text-primary)'
+    }
+    if (!confirmada && eliminada) {
+        bg = 'rgba(148,163,184,0.06)'; border = 'rgba(148,163,184,0.22)'; color = 'var(--text-muted)'
     }
     if (confirmada && isCorr) {
         bg = 'var(--success-bg)'; border = 'rgba(16,185,129,0.4)'; color = 'var(--success)'
@@ -354,6 +385,7 @@ function AlternativaBtn({ letra, texto, selecionada, confirmada, correta, onClic
                 padding: '0.875rem 1rem', borderRadius: 'var(--radius-md)',
                 background: bg, border: `1px solid ${border}`, cursor: confirmada ? 'default' : 'pointer',
                 transition: 'all 0.2s', textAlign: 'left', width: '100%',
+                opacity: !confirmada && eliminada ? 0.7 : 1,
             }}
         >
             <span style={{
@@ -366,7 +398,10 @@ function AlternativaBtn({ letra, texto, selecionada, confirmada, correta, onClic
             }}>
                 {confirmada && isCorr ? '✓' : letra}
             </span>
-            <span style={{ color, fontSize: '0.9rem', lineHeight: 1.6, flex: 1 }}>{texto}</span>
+            <span style={{
+                color, fontSize: '0.9rem', lineHeight: 1.6, flex: 1,
+                textDecoration: !confirmada && eliminada ? 'line-through' : 'none',
+            }}>{texto}</span>
         </button>
     )
 }

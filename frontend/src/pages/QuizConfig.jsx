@@ -85,6 +85,7 @@ export default function QuizConfig() {
                 quantidade: config.quantidade,
                 dificuldade: config.dificuldade,
                 tipo: config.tipo,
+                ...(config.banca.trim() && { banca: config.banca.trim() }),
                 ...(config.modo === 'concurso' && { concurso_id: Number(config.concurso_id) }),
                 ...(config.modo === 'materia' && { materia_id: Number(config.materia_id) }),
                 ...(config.modo === 'topico' && { topico_id: Number(config.topico_id) }),
