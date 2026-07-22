@@ -67,8 +67,8 @@ class GerarQuestoesJob implements ShouldQueue
 
     private function gerarPorTopico(GeminiService $gemini): array
     {
-        $topico = Topico::with('materia')->findOrFail($this->contextoId);
-        $topico->materia->concurso()->where('user_id', $this->userId)->firstOrFail();
+        $topico = Topico::with('materia.concurso.bancaReferenceProfiles')->findOrFail($this->contextoId);
+        $concurso = $topico->materia->concurso()->where('user_id', $this->userId)->firstOrFail();
 
         $difEfetiva = $this->resolverDificuldade($topico->id);
 
@@ -78,7 +78,8 @@ class GerarQuestoesJob implements ShouldQueue
             quantidade: $this->quantidade,
             tipo: $this->tipo,
             dificuldade: $difEfetiva,
-            banca: $this->banca
+            banca: $this->banca,
+            perfisBanca: $this->perfisBanca($concurso)
         );
 
         return $this->persistirQuestoes($questoesRaw, $topico->id);
@@ -86,7 +87,7 @@ class GerarQuestoesJob implements ShouldQueue
 
     private function gerarPorMateria(GeminiService $gemini): array
     {
-        $materia = Materia::with('topicos', 'concurso')
+        $materia = Materia::with('topicos', 'concurso.bancaReferenceProfiles')
             ->whereHas('concurso', fn($q) => $q->where('user_id', $this->userId))
             ->findOrFail($this->contextoId);
 
@@ -96,7 +97,7 @@ class GerarQuestoesJob implements ShouldQueue
             'id' => $t->id,
         ])->toArray();
 
-        $questoesRaw = $gemini->gerarSimuladoMesclado($topicosParaGemini, $this->quantidade, $this->dificuldade, $this->tipo, $this->banca);
+        $questoesRaw = $gemini->gerarSimuladoMesclado($topicosParaGemini, $this->quantidade, $this->dificuldade, $this->tipo, $this->banca, $this->perfisBanca($materia->concurso));
 
         return $this->persistirQuestoesComTopico($questoesRaw, $materia->topicos->keyBy('nome'));
     }
@@ -104,7 +105,7 @@ class GerarQuestoesJob implements ShouldQueue
     private function gerarPorConcurso(GeminiService $gemini): array
     {
         $concurso = Concurso::where('user_id', $this->userId)
-            ->with('materias.topicos')
+            ->with('materias.topicos', 'bancaReferenceProfiles')
             ->findOrFail($this->contextoId);
 
         $topicosParaGemini = [];
@@ -124,7 +125,7 @@ class GerarQuestoesJob implements ShouldQueue
             throw new \RuntimeException('O concurso não possui tópicos cadastrados.');
         }
 
-        $questoesRaw = $gemini->gerarSimuladoMesclado($topicosParaGemini, $this->quantidade, $this->dificuldade, $this->tipo, $this->banca);
+        $questoesRaw = $gemini->gerarSimuladoMesclado($topicosParaGemini, $this->quantidade, $this->dificuldade, $this->tipo, $this->banca, $this->perfisBanca($concurso));
 
         return $this->persistirQuestoesComTopico($questoesRaw, collect($topicosPorNome));
     }
@@ -225,5 +226,15 @@ class GerarQuestoesJob implements ShouldQueue
             $taxa <= 70 => 'medio',
             default => 'dificil',
         };
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    private function perfisBanca(Concurso $concurso): array
+    {
+        return $concurso->bancaReferenceProfiles
+            ->take(3)
+            ->map(fn($referencia) => $referencia->profile)
+            ->values()
+            ->all();
     }
 }

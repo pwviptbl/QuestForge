@@ -7,6 +7,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PomodoroController;
 use App\Http\Controllers\QuestaoController;
 use App\Http\Controllers\SrsController;
+use App\Http\Controllers\TtsController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -49,12 +50,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('materias/{id}', [ConcursoController::class, 'destroyMateria']);
     Route::post('materias/{id}/topicos', [ConcursoController::class, 'addTopico']);
     Route::delete('topicos/{id}', [ConcursoController::class, 'destroyTopico']);
+    Route::post('concursos/{id}/referencias-banca', [ConcursoController::class, 'addBancaReference'])->middleware('throttle:5,10');
+    Route::delete('concursos/{id}/referencias-banca/{profileId}', [ConcursoController::class, 'destroyBancaReference']);
 
     // ── Fase 3: Questões e Respostas ─────────────────────
     Route::post('questoes/gerar', [QuestaoController::class, 'gerar'])->middleware('throttle:15,1'); // Previne overload da API Gemini/Gastos
     Route::get('questoes/task/{id}', [QuestaoController::class, 'checkTaskStatus']);
     Route::post('respostas', [QuestaoController::class, 'registrarResposta']);
     Route::post('questoes/{id}/explicacao', [QuestaoController::class, 'gerarExplicacao']);
+    Route::post('tts', [TtsController::class, 'synthesize'])->middleware('throttle:30,1');
 
     // ── Fase 5: SRS (Revisão Espaçada) ───────────────────
     Route::get('srs/pendentes', [SrsController::class, 'pendentes']);

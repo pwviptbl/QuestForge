@@ -40,9 +40,10 @@ class GeminiService
         int $quantidade,
         string $tipo,
         string $dificuldade,
-        ?string $banca = null
+        ?string $banca = null,
+        array $perfisBanca = []
     ): array {
-        $prompt = $this->montarPromptGeracao($materia, $topico, $quantidade, $tipo, $dificuldade, $banca);
+        $prompt = $this->montarPromptGeracao($materia, $topico, $quantidade, $tipo, $dificuldade, $banca, $perfisBanca);
         $config = array_merge(config('gemini.generation_config'), [
             'responseMimeType' => 'application/json',
             'responseSchema' => [
@@ -98,10 +99,11 @@ class GeminiService
         int $quantidade,
         string $dificuldade,
         string $tipo,
-        ?string $banca = null
+        ?string $banca = null,
+        array $perfisBanca = []
     ): array
     {
-        $prompt = $this->montarPromptSimuladoMesclado($topicos, $quantidade, $dificuldade, $tipo, $banca);
+        $prompt = $this->montarPromptSimuladoMesclado($topicos, $quantidade, $dificuldade, $tipo, $banca, $perfisBanca);
         $config = array_merge(config('gemini.generation_config'), [
             'responseMimeType' => 'application/json',
             'responseSchema' => [
@@ -164,6 +166,40 @@ class GeminiService
         return $this->chamarApi($prompt, $config);
     }
 
+    /** Converte uma prova temporária em regras de estilo, sem reter o texto das questões. */
+    public function analisarPerfilBanca(string $texto, string $banca, string $concurso): array
+    {
+        $prompt = <<<PROMPT
+Analise a prova abaixo, da banca {$banca}, como referência para o concurso "{$concurso}".
+Extraia APENAS características de estilo. Não copie, cite, resuma ou reproduza questões, alternativas, nomes próprios ou respostas da prova.
+
+Retorne JSON válido com as chaves:
+- resumo_estilo: texto conciso de até 900 caracteres;
+- estrutura_enunciado: texto;
+- perfil_alternativas: texto;
+- comandos_recorrentes: lista de até 6 strings;
+- estrategia_distratores: texto;
+- nivel_cobranca: texto;
+- alertas_geracao: lista de até 6 strings.
+
+PROVA TEMPORÁRIA:
+{$texto}
+PROMPT;
+
+        $textoJson = $this->chamarApi($prompt, [
+            'temperature' => 0.2,
+            'max_output_tokens' => 2048,
+            'responseMimeType' => 'application/json',
+        ]);
+        $perfil = $this->extrairJson($textoJson);
+
+        if (empty($perfil['resumo_estilo'])) {
+            throw new \RuntimeException('A análise da referência não retornou um perfil de estilo válido.');
+        }
+
+        return $perfil;
+    }
+
     // ─────────────────────────────────────────────────────────────
     // MONTAGEM DE PROMPTS
     // ─────────────────────────────────────────────────────────────
@@ -177,7 +213,8 @@ class GeminiService
         int $quantidade,
         string $tipo,
         string $dificuldade,
-        ?string $banca = null
+        ?string $banca = null,
+        array $perfisBanca = []
     ): string {
         $tipoDescricao = match ($tipo) {
             'multipla_escolha' => 'múltipla escolha com exatamente 5 alternativas (A, B, C, D, E)',
@@ -202,6 +239,8 @@ class GeminiService
             ? "Você deve agir EXATAMENTE como a banca examinadora '{$banca}', imitando perfeitamente o seu estilo de cobrança, nível de complexidade, jargões e estrutura de alternativas/distratores."
             : "As questões devem ser no estilo de bancas tradicionais brasileiras como CESPE, FCC, VUNESP e FGV.";
 
+        $referenciasBanca = $this->formatarPerfisBanca($perfisBanca);
+
         return <<<PROMPT
 Você é um gerador de questões de concurso público brasileiro. Sua ÚNICA função é gerar questões no formato JSON estruturado. Siga estas regras OBRIGATORIAMENTE:
 
@@ -209,6 +248,7 @@ Você é um gerador de questões de concurso público brasileiro. Sua ÚNICA fun
 2. Dificuldade: {$difDescricao}.
 3. Tipo: {$tipoDescricao}.
 4. {$bancaFoco}
+{$referenciasBanca}
 5. Cada questão deve ter um enunciado claro, direto e sem ambiguidades.
 6. Para múltipla escolha: exatamente UMA alternativa correta e 4 distratores plausíveis.
 7. {$regraTipo}
@@ -243,7 +283,8 @@ PROMPT;
         int $quantidade,
         string $dificuldade,
         string $tipo,
-        ?string $banca = null
+        ?string $banca = null,
+        array $perfisBanca = []
     ): string {
         // Formata lista de tópicos para o prompt
         $listaTopicos = collect($topicos)
@@ -264,6 +305,8 @@ PROMPT;
             ? "Você deve agir EXATAMENTE como a banca examinadora '{$banca}', imitando perfeitamente o seu estilo de cobrança, nível de complexidade, jargões e estrutura de alternativas/distratores."
             : "Use estilo de bancas como CESPE, FCC, VUNESP e FGV.";
 
+        $referenciasBanca = $this->formatarPerfisBanca($perfisBanca);
+
         return <<<PROMPT
 Você é um gerador de questões de concurso público brasileiro. Gere um simulado MESCLADO.
 
@@ -275,6 +318,7 @@ REGRAS:
 2. {$distribuicaoDif}
 3. A ordem das questões deve ser ALEATÓRIA (não agrupe por tópico).
 4. {$bancaFoco}
+{$referenciasBanca}
 5. {$regraTipo}
 
 RETORNE EXCLUSIVAMENTE um JSON válido (sem markdown, sem texto adicional):
@@ -298,6 +342,19 @@ RETORNE EXCLUSIVAMENTE um JSON válido (sem markdown, sem texto adicional):
   ]
 }
 PROMPT;
+    }
+
+    /** @param array<int, array<string, mixed>> $perfisBanca */
+    private function formatarPerfisBanca(array $perfisBanca): string
+    {
+        if (empty($perfisBanca)) {
+            return '';
+        }
+
+        $json = json_encode($perfisBanca, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        return "5. PERFIS DE ESTILO EXTRAÍDOS DE PROVAS DE REFERÊNCIA: {$json}\n" .
+            "Use-os para orientar formato e dificuldade, mas gere conteúdo inteiramente inédito e nunca reproduza textos de provas reais.";
     }
 
     /**

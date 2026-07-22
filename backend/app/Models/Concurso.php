@@ -57,4 +57,10 @@ class Concurso extends Model
     {
         return $this->hasManyThrough(Topico::class, Materia::class);
     }
+
+    /** Perfis de estilo extraídos de provas de referência deste concurso. */
+    public function bancaReferenceProfiles(): HasMany
+    {
+        return $this->hasMany(BancaReferenceProfile::class)->latest();
+    }
 }
